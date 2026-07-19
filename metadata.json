@@ -1,0 +1,6 @@
+{
+  "name": "منصة إدارة الأملاك العقارية",
+  "description": "لوحة تحكم ذكية لإدارة وتتبع الأصول العقارية وصكوك الملكية والتسجيل العيني للعقارات بشكل تفاعلي ومؤتمت.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

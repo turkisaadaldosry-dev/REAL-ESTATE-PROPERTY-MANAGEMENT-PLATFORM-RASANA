@@ -1,0 +1,101 @@
+@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Tajawal", ui-sans-serif, system-ui, sans-serif;
+  --color-brand-primary: #D49D2F; /* Premium Gold from Rasana */
+  --color-brand-accent: #EF4444; /* Alert Red */
+  --color-brand-bg: #0B0E17; /* Dark background */
+  --color-brand-text: #E2E8F0; /* Slate Light Text */
+}
+
+/* Custom Neumorphic Styling for Dark Theme */
+.neu-flat {
+  background: #151C2C;
+  box-shadow: 10px 10px 20px rgba(4, 6, 10, 0.5), 
+             -8px -8px 20px rgba(255, 255, 255, 0.02);
+  border-radius: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.neu-flat-hover:hover {
+  box-shadow: 14px 14px 28px rgba(4, 6, 10, 0.6), 
+             -10px -10px 28px rgba(255, 255, 255, 0.04);
+  transform: translateY(-2px);
+}
+
+.neu-pressed {
+  background: #0E131F;
+  box-shadow: inset 6px 6px 12px rgba(4, 6, 10, 0.6), 
+              inset -6px -6px 12px rgba(255, 255, 255, 0.01);
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.01);
+}
+
+.neu-btn {
+  background: #151C2C;
+  box-shadow: 6px 6px 12px rgba(4, 6, 10, 0.4), 
+             -6px -6px 12px rgba(255, 255, 255, 0.02);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.02);
+}
+
+.neu-btn:hover {
+  box-shadow: 3px 3px 6px rgba(4, 6, 10, 0.4), 
+             -3px -3px 6px rgba(255, 255, 255, 0.03);
+  transform: translateY(1px);
+}
+
+.neu-btn:active, .neu-btn.active {
+  box-shadow: inset 4px 4px 8px rgba(4, 6, 10, 0.6), 
+              inset -4px -4px 8px rgba(255, 255, 255, 0.01);
+  color: #D49D2F;
+  font-weight: bold;
+}
+
+.analytics-pill {
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  display: inline-flex;
+  aria-selected: true;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: bold;
+  transition: all 0.2s;
+  background: #151C2C;
+  box-shadow: 4px 4px 8px rgba(4, 6, 10, 0.4), -4px -4px 8px rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.02);
+}
+
+.analytics-pill:hover {
+  transform: translateY(1px);
+  box-shadow: 2px 2px 4px rgba(4, 6, 10, 0.4), -2px -2px 4px rgba(255, 255, 255, 0.03);
+}
+
+.analytics-pill.active {
+  box-shadow: inset 3px 3px 6px rgba(4, 6, 10, 0.5), inset -3px -3px 6px rgba(255, 255, 255, 0.01);
+  color: #D49D2F;
+  border-color: rgba(212, 157, 47, 0.2);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #0B0E17;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb {
+  background: #1E293B;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #D49D2F;
+}
+
