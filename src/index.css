@@ -1,101 +1,206 @@
-@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&family=Outfit:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
+:root {
+  --bg: #141a2e;
+  --card: #141a2e;
+  --accent-gold: #bb984c;
+  --accent-copper: #bf652d;
+  --text-muted: #94a3b8;
+  --white: #ffffff;
+  --shadow-dark: #0a0d17;
+  --shadow-light: rgba(255, 255, 255, 0.03);
+}
+
 @theme {
-  --font-sans: "Tajawal", ui-sans-serif, system-ui, sans-serif;
-  --color-brand-primary: #D49D2F; /* Premium Gold from Rasana */
-  --color-brand-accent: #EF4444; /* Alert Red */
-  --color-brand-bg: #0B0E17; /* Dark background */
-  --color-brand-text: #E2E8F0; /* Slate Light Text */
+  --font-sans: "Tajawal", "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-tajawal: "Tajawal", sans-serif;
+  --font-outfit: "Outfit", sans-serif;
+  
+  --color-navy-dark: #141a2e;
+  --color-navy-light: #1c243f;
+  --color-gold: #bb984c;
+  --color-copper: #bf652d;
+  --color-muted-blue: #94a3b8;
+
+  --color-brand-primary: #bb984c;
+  --color-brand-accent: #bf652d;
+  --color-brand-bg: #141a2e;
+  --color-brand-text: #f8fafc;
 }
 
-/* Custom Neumorphic Styling for Dark Theme */
+/* Custom Neumorphism Styles matching Dark Luxury / Travel */
 .neu-flat {
-  background: #151C2C;
-  box-shadow: 10px 10px 20px rgba(4, 6, 10, 0.5), 
-             -8px -8px 20px rgba(255, 255, 255, 0.02);
-  border-radius: 1.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.03);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: var(--card);
+  box-shadow: 8px 8px 16px var(--shadow-dark), 
+              -4px -4px 12px var(--shadow-light);
+  border-radius: 16px;
+  border: 1px solid rgba(187, 152, 76, 0.08);
 }
 
-.neu-flat-hover:hover {
-  box-shadow: 14px 14px 28px rgba(4, 6, 10, 0.6), 
-             -10px -10px 28px rgba(255, 255, 255, 0.04);
-  transform: translateY(-2px);
+.neu-flat-light {
+  background: #1c243f;
+  box-shadow: 8px 8px 16px var(--shadow-dark), 
+              -4px -4px 12px var(--shadow-light);
+  border-radius: 16px;
+  border: 1px solid rgba(187, 152, 76, 0.08);
+}
+
+.neu-inset {
+  background: var(--card);
+  box-shadow: inset 6px 6px 12px var(--shadow-dark), 
+              inset -2px -2px 8px var(--shadow-light);
+  border-radius: 12px;
+  border: 1px solid rgba(187, 152, 76, 0.05);
 }
 
 .neu-pressed {
-  background: #0E131F;
-  box-shadow: inset 6px 6px 12px rgba(4, 6, 10, 0.6), 
-              inset -6px -6px 12px rgba(255, 255, 255, 0.01);
-  border-radius: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.01);
+  background: var(--card);
+  box-shadow: inset 4px 4px 8px var(--shadow-dark), 
+              inset -4px -4px 8px var(--shadow-light);
 }
 
-.neu-btn {
-  background: #151C2C;
-  box-shadow: 6px 6px 12px rgba(4, 6, 10, 0.4), 
-             -6px -6px 12px rgba(255, 255, 255, 0.02);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  cursor: pointer;
-  border: 1px solid rgba(255, 255, 255, 0.02);
+.neu-pressed-light {
+  background: #1c243f;
+  box-shadow: inset 4px 4px 8px var(--shadow-dark), 
+              inset -4px -4px 8px var(--shadow-light);
 }
 
-.neu-btn:hover {
-  box-shadow: 3px 3px 6px rgba(4, 6, 10, 0.4), 
-             -3px -3px 6px rgba(255, 255, 255, 0.03);
+.neu-button {
+  background: var(--card);
+  box-shadow: 4px 4px 10px var(--shadow-dark), 
+              -4px -4px 10px var(--shadow-light);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid rgba(187, 152, 76, 0.1);
+}
+
+.neu-button:hover {
+  box-shadow: 2px 2px 5px var(--shadow-dark), 
+              -2px -2px 5px var(--shadow-light);
+  transform: translateY(-1px);
+  border-color: rgba(187, 152, 76, 0.3);
+}
+
+.neu-button:active {
+  box-shadow: inset 3px 3px 6px var(--shadow-dark), 
+              inset -3px -3px 6px var(--shadow-light);
   transform: translateY(1px);
 }
 
-.neu-btn:active, .neu-btn.active {
-  box-shadow: inset 4px 4px 8px rgba(4, 6, 10, 0.6), 
-              inset -4px -4px 8px rgba(255, 255, 255, 0.01);
-  color: #D49D2F;
-  font-weight: bold;
+.neu-button-gold {
+  background: linear-gradient(135deg, var(--accent-gold), #9c7b39);
+  box-shadow: 4px 4px 10px var(--shadow-dark), 
+              -4px -4px 10px var(--shadow-light);
+  transition: all 0.3s ease;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.analytics-pill {
-  cursor: pointer;
-  padding: 0.5rem 1rem;
-  border-radius: 9999px;
-  display: inline-flex;
-  aria-selected: true;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-  font-weight: bold;
-  transition: all 0.2s;
-  background: #151C2C;
-  box-shadow: 4px 4px 8px rgba(4, 6, 10, 0.4), -4px -4px 8px rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.02);
+.neu-button-gold:hover {
+  background: linear-gradient(135deg, #ccaa5c, #aa873f);
+  box-shadow: 2px 2px 5px var(--shadow-dark);
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
-.analytics-pill:hover {
+.neu-button-gold:active {
+  background: #9c7b39;
+  box-shadow: inset 3px 3px 6px rgba(0, 0, 0, 0.4);
   transform: translateY(1px);
-  box-shadow: 2px 2px 4px rgba(4, 6, 10, 0.4), -2px -2px 4px rgba(255, 255, 255, 0.03);
 }
 
-.analytics-pill.active {
-  box-shadow: inset 3px 3px 6px rgba(4, 6, 10, 0.5), inset -3px -3px 6px rgba(255, 255, 255, 0.01);
-  color: #D49D2F;
-  border-color: rgba(212, 157, 47, 0.2);
+.accent-gradient {
+  background: linear-gradient(135deg, var(--accent-gold), var(--accent-copper));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
-/* Scrollbar */
+.border-gold {
+  border: 1px solid rgba(187, 152, 76, 0.3);
+}
+
+/* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
-  height: 8px;
 }
+
 ::-webkit-scrollbar-track {
-  background: #0B0E17;
-  border-radius: 4px;
+  background: var(--bg);
 }
+
 ::-webkit-scrollbar-thumb {
-  background: #1E293B;
+  background: var(--accent-gold);
   border-radius: 4px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
-  background: #D49D2F;
+  background: var(--accent-copper);
 }
+
+/* Smooth Scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Print Styles for A4 Company Profile */
+@media print {
+  body {
+    background-color: #141a2e !important;
+    color: #f8fafc !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  
+  /* Hide the entire React app's regular screens */
+  #root > .app-main-layout {
+    display: none !important;
+  }
+  
+  /* Make sure our print container is visible */
+  .print-profile-container {
+    display: block !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 210mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #141a2e !important;
+  }
+
+  .a4-page {
+    width: 210mm !important;
+    height: 297mm !important;
+    min-height: 297mm !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    page-break-after: always !important;
+    position: relative !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+    background-color: #141a2e !important;
+  }
+
+  .a4-page:last-child {
+    page-break-after: avoid !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* Screen aspect ratio helper for premium A4 desktop preview */
+.a4-page {
+  aspect-ratio: 210 / 297;
+  width: 100%;
+  max-width: 210mm;
+  min-height: 297mm;
+  background-color: #141a2e;
+}
+
 

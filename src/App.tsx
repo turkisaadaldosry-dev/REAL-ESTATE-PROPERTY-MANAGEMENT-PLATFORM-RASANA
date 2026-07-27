@@ -615,19 +615,32 @@ export default function App() {
               className="flex items-center gap-4 group cursor-pointer hover:opacity-95 transition-all"
               title="انقر لزيارة موقع رصانة"
             >
-              <div className="p-3 neu-flat rounded-2xl text-brand-primary flex items-center justify-center border border-brand-primary/20 group-hover:scale-105 group-hover:border-brand-primary/40 transition-all duration-300">
-                <Building2 className="w-9 h-9" />
+              <div className="w-12 h-12 rounded-2xl bg-navy-dark/60 border border-brand-primary/20 flex items-center justify-center shadow-md relative group-hover:border-brand-primary/40 group-hover:scale-105 transition-all duration-300">
+                <svg 
+                  className="w-7 h-7 text-brand-primary stroke-[2]" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round"
+                >
+                  {/* Shield */}
+                  <path d="M12 3 L19 5 v6 c0 4.5 -3.5 8.5 -7 10 c-3.5 -1.5 -7 -5.5 -7 -10 V5 Z" />
+                  {/* Upward Arrow */}
+                  <path d="M12 16 V8" />
+                  <path d="M9 11 l3-3 3 3" />
+                </svg>
               </div>
               <div className="flex flex-col">
                 <div className="flex items-center gap-2">
-                  <span className="font-black text-3xl text-white tracking-wide group-hover:text-brand-primary transition-colors">رَصَانَة</span>
+                  <span className="font-tajawal font-extrabold text-2xl md:text-3xl text-white tracking-wide group-hover:text-brand-primary transition-colors">رَصَانَة</span>
                   <span className="bg-brand-primary/10 text-brand-primary border border-brand-primary/20 text-[10px] px-2 py-0.5 rounded font-bold flex items-center gap-1">
                     <Sparkles className="w-2.5 h-2.5" /> منصة معتمدة
                   </span>
                 </div>
-                <span className="font-mono text-xs tracking-[0.25em] text-brand-primary font-bold">RASANA</span>
-                <span className="font-bold text-xs text-slate-400 mt-1 flex items-center gap-1">
-                  لوحة متابعة وإدارة الأصول العقارية وسجل الصكوك
+                <span className="font-outfit font-bold text-[10px] tracking-[0.25em] text-brand-primary uppercase">RASANA</span>
+                <span className="font-bold text-xs text-slate-400 mt-0.5 flex items-center gap-1">
+                  لوحة متابعة وإدارة الأصول العقارية وسجل الصكوك والعقود
                   <ArrowUpRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity text-brand-primary" />
                 </span>
               </div>
