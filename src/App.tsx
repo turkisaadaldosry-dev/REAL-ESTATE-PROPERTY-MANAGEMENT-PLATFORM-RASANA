@@ -27,6 +27,7 @@ import {
   ChevronRight,
   Info,
   CheckCircle,
+  CheckCircle2,
   XCircle,
   AlertTriangle,
   ArrowUpRight,
@@ -35,12 +36,18 @@ import {
   Gavel
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import { RealEstateAsset, FilterState, RentalContract, RentalFilterState } from './types';
+import { RealEstateAsset, FilterState, RentalContract, RentalFilterState, AgencyPoa, AgencyFilterState, TaskItem, DetailedCase } from './types';
 import RentalsSection from './components/RentalsSection';
+import AgenciesSection from './components/AgenciesSection';
+import TasksSection from './components/TasksSection';
+import CasesSection from './components/CasesSection';
 
 // Google Sheet CSV URLs
 const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSQij-f5Lsj-x3qEMZRX3VPsAEOCBd09O8BqA8zugUJPB_8TRzfvYYB04hRgb6Tpg6uNDeRmXGpqgGZ/pub?gid=304190621&single=true&output=csv';
 const RENTAL_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSzYnO77sbix0Tm0GD_om-hT3yiPrmrcCoKQFqXfIqB24oUn7c4hhhXU4KbuSS1265iXF473UWQqQOH/pub?gid=304190621&single=true&output=csv';
+const POA_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT8qWdU0eFMs5IMYbDwamiGZCpDejrHdczl1d9D8Ivdo91ulEzeXC6uyrJmPw3-z9j4CtUnE5tUPdMn/pub?gid=837529963&single=true&output=csv';
+const TASKS_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT8qWdU0eFMs5IMYbDwamiGZCpDejrHdczl1d9D8Ivdo91ulEzeXC6uyrJmPw3-z9j4CtUnE5tUPdMn/pub?gid=883025564&single=true&output=csv';
+const CASES_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT8qWdU0eFMs5IMYbDwamiGZCpDejrHdczl1d9D8Ivdo91ulEzeXC6uyrJmPw3-z9j4CtUnE5tUPdMn/pub?gid=1227781018&single=true&output=csv';
 
 // Column Mapping for Assets
 const COL = {
@@ -90,8 +97,24 @@ const RENT_COL = {
   CASE_STATUS: 32,     // AG: حالتها
 };
 
+// Column Mapping for Agencies (POAs)
+const POA_COL = {
+  POA_NUMBER: 0,      // A: رقم الوكالة
+  HIJRI_DATE: 1,      // B: تاريخها بالهجري
+  GREGORIAN_DATE: 2,  // C: تاريخها بالميلادي
+  EXPIRY_DATE: 3,     // D: تاريخ الانتهاء
+  REMAINING_DAYS: 4,  // E: المتبقي على الانتهاء
+  PRINCIPAL_NAME: 5,  // F: الموكل
+  PRINCIPAL_ID: 6,    // G: هوية الموكل
+  AGENT_NAME: 7,      // H: الوكيل
+  AGENT_ID: 8,        // I: هوية الوكيل
+  AGENCY_TITLE: 9,    // J: اسم الوكالة
+  NOTES: 10,          // K: ملاحظة
+  DOC_LINK: 11,       // L: رابط الوكالة
+};
+
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'assets' | 'rentals'>('assets');
+  const [activeTab, setActiveTab] = useState<'assets' | 'rentals' | 'agencies' | 'tasks' | 'cases'>('cases');
 
   // Assets State
   const [rawData, setRawData] = useState<RealEstateAsset[]>([]);
@@ -128,11 +151,29 @@ export default function App() {
     urgency: 'all',
   });
 
+  // Agencies State
+  const [agenciesRaw, setAgenciesRaw] = useState<AgencyPoa[]>([]);
+  const [agencyFilters, setAgencyFilters] = useState<AgencyFilterState>({
+    poaNumber: '',
+    name: '',
+    status: 'all',
+  });
+
+  // Tasks & Cases State
+  const [tasksRaw, setTasksRaw] = useState<TaskItem[]>([]);
+  const [casesRaw, setCasesRaw] = useState<DetailedCase[]>([]);
+
   // Universal loading and error states
   const [assetsLoading, setAssetsLoading] = useState<boolean>(true);
   const [rentalsLoading, setRentalsLoading] = useState<boolean>(true);
+  const [agenciesLoading, setAgenciesLoading] = useState<boolean>(true);
+  const [tasksLoading, setTasksLoading] = useState<boolean>(true);
+  
   const [assetsError, setAssetsError] = useState<string | null>(null);
   const [rentalsError, setRentalsError] = useState<string | null>(null);
+  const [agenciesError, setAgenciesError] = useState<string | null>(null);
+  const [tasksError, setTasksError] = useState<string | null>(null);
+
 
   // Load Data
   useEffect(() => {
@@ -255,12 +296,233 @@ export default function App() {
       }
     };
 
+    // 3. Fetch Agencies (POAs)
+    const fetchAgencies = () => {
+      try {
+        setAgenciesLoading(true);
+        Papa.parse(POA_SHEET_URL, {
+          download: true,
+          header: false,
+          skipEmptyLines: true,
+          complete: (results) => {
+            if (results.data && results.data.length > 1) {
+              const rows = results.data.slice(1) as string[][];
+              const parsed: AgencyPoa[] = rows
+                .filter(row => row.length > 1 && row[POA_COL.POA_NUMBER])
+                .map(row => {
+                  const sanitized = row.map(cell => (cell ? cell.trim() : ''));
+                  return {
+                    poaNumber: sanitized[POA_COL.POA_NUMBER] || '',
+                    hijriDate: sanitized[POA_COL.HIJRI_DATE] || '',
+                    gregorianDate: sanitized[POA_COL.GREGORIAN_DATE] || '',
+                    expiryDate: sanitized[POA_COL.EXPIRY_DATE] || '',
+                    remainingDays: sanitized[POA_COL.REMAINING_DAYS] || '',
+                    principalName: sanitized[POA_COL.PRINCIPAL_NAME] || '',
+                    principalId: sanitized[POA_COL.PRINCIPAL_ID] || '',
+                    agentName: sanitized[POA_COL.AGENT_NAME] || '',
+                    agentId: sanitized[POA_COL.AGENT_ID] || '',
+                    agencyTitle: sanitized[POA_COL.AGENCY_TITLE] || '',
+                    notes: sanitized[POA_COL.NOTES] || '',
+                    docLink: sanitized[POA_COL.DOC_LINK] || '',
+                  };
+                });
+              setAgenciesRaw(parsed);
+              setAgenciesLoading(false);
+            } else {
+              setAgenciesError('الملف المستورد للوكالات فارغ أو غير صالح.');
+              setAgenciesLoading(false);
+            }
+          },
+          error: (err) => {
+            console.error('Error parsing Agencies CSV:', err);
+            setAgenciesError('فشل في جلب وتفسير ملف الوكالات.');
+            setAgenciesLoading(false);
+          }
+        });
+      } catch (err) {
+        console.error('Fetch agencies error:', err);
+        setAgenciesError('حدث خطأ غير متوقع أثناء معالجة الوكالات.');
+        setAgenciesLoading(false);
+      }
+    };
+
+    // 4. Fetch Tasks & Cases
+    const fetchTasksAndCases = async () => {
+      try {
+        setTasksLoading(true);
+        setTasksError(null);
+
+        // Fetch Cases Sheet
+        const casesPromise = new Promise<DetailedCase[]>((resolve) => {
+          Papa.parse(CASES_SHEET_URL, {
+            download: true,
+            header: false,
+            skipEmptyLines: true,
+            complete: (results) => {
+              if (results.data && results.data.length > 1) {
+                const rows = results.data.slice(1) as string[][];
+                const parsedCases: DetailedCase[] = rows
+                  .filter(row => row.length > 0 && row.some(cell => cell.trim()))
+                  .map(row => {
+                    const s = row.map(cell => (cell ? cell.trim() : ''));
+                    return {
+                      caseNumber: s[0] || '',
+                      classification: s[1] || '',
+                      caseType: s[2] || '',
+                      caseDate: s[3] || '',
+                      plaintiff: s[4] || '',
+                      plaintiffId: s[5] || '',
+                      defendant: s[6] || '',
+                      defendantId: s[7] || '',
+                      claims: s[8] || '',
+                      court: s[9] || '',
+                      circuit: s[10] || '',
+                      driveLink: s[11] || '',
+                      caseStatus: s[12] || '',
+                      caseManager: s[13] || '',
+                      currentSituation: s[15] || '',
+                      fileNameQ: s[16] || '',
+                      requestType: s[17] || '',
+                      completedCases: s[18] || '',
+                      reportDate: s[19] || '',
+                      notes: s[20] || '',
+                      instrumentDeed: s[21] || '',
+                      rawRow: s,
+                    };
+                  });
+                resolve(parsedCases);
+              } else {
+                resolve([]);
+              }
+            },
+            error: (err) => {
+              console.error('Cases parse error:', err);
+              resolve([]);
+            }
+          });
+        });
+
+        const parsedCases = await casesPromise;
+        setCasesRaw(parsedCases);
+
+        // Fetch Tasks Sheet
+        Papa.parse(TASKS_SHEET_URL, {
+          download: true,
+          header: false,
+          skipEmptyLines: true,
+          complete: (results) => {
+            if (results.data && results.data.length > 1) {
+              const rows = results.data.slice(1) as string[][];
+              const parsedTasks: TaskItem[] = rows
+                .filter(row => row.length > 0 && row.some(cell => cell.trim()))
+                .map((row, idx) => {
+                  const s = row.map(cell => (cell ? cell.trim() : ''));
+                  const mainPhase = s[0] || '';
+                  const taskName = s[1] || '';
+                  const colC = s[2] || '';
+                  const importance = s[3] || s[2] || 'عادية'; // Column D (درجة الأهمية)
+                  const colE = s[4] || ''; // Column E (نسبة انجاز المهمة)
+                  const completionDate = s[5] || s[4] || s[3] || ''; // Column F (تاريخ انجاز المهمة)
+                  const colG = s[6] || '';
+                  const assignee = s[7] || s[5] || 'غير محدد'; // Column H (المسؤول عن المهمة)
+                  const statusColL = s[11] || s[10] || s[6] || colE || ''; // Column L (الحالة)
+                  const notes = s[12] || s[8] || s[7] || colG || '';
+
+                  // Parse progress percentage (Column E - خانة E)
+                  let progressPercentage = 0;
+                  const combinedText = `${colE} ${statusColL} ${s.join(' ')}`.toLowerCase();
+
+                  if (
+                    colE.includes('100') ||
+                    colE.includes('مكتمل') ||
+                    colE.includes('منجز') ||
+                    colE.includes('تم') ||
+                    colE.includes('جاهز') ||
+                    colE.includes('مغلق') ||
+                    colE.includes('انتهت') ||
+                    colE.trim() === '1' ||
+                    colE.trim() === 'نعم' ||
+                    combinedText.includes('100%') ||
+                    combinedText.includes('مكتملة') ||
+                    combinedText.includes('مكتمل') ||
+                    combinedText.includes('منجزة') ||
+                    combinedText.includes('تم الإنجاز')
+                  ) {
+                    progressPercentage = 100;
+                  } else if (colE.includes('جاري') || colE.includes('قيد') || combinedText.includes('جاري العمل')) {
+                    progressPercentage = 50;
+                  } else {
+                    const numMatch = colE.match(/(\d+)/) || combinedText.match(/(\d+)/);
+                    if (numMatch) {
+                      const parsedVal = parseInt(numMatch[1], 10);
+                      if (parsedVal >= 100) progressPercentage = 100;
+                      else if (parsedVal > 0) progressPercentage = parsedVal;
+                    }
+                  }
+
+                  const statusRaw = statusColL || colE || (progressPercentage === 100 ? 'مكتملة' : progressPercentage > 0 ? 'جاري العمل' : 'لم تبدأ');
+
+                  // Cross-linking matching
+                  let matchedCase: DetailedCase | undefined;
+                  if (mainPhase) {
+                    const phaseLower = mainPhase.toLowerCase();
+                    matchedCase = parsedCases.find(c => {
+                      if (c.fileNameQ && (phaseLower.includes(c.fileNameQ.toLowerCase()) || c.fileNameQ.toLowerCase().includes(phaseLower))) {
+                        return true;
+                      }
+                      if (c.caseNumber && (phaseLower.includes(c.caseNumber) || c.caseNumber.includes(phaseLower))) {
+                        return true;
+                      }
+                      return false;
+                    });
+                  }
+
+                  return {
+                    id: `task-${idx}-${Date.now()}`,
+                    mainPhase,
+                    taskName,
+                    importance,
+                    startDate: colC,
+                    endDate: completionDate,
+                    assignee,
+                    status: statusRaw,
+                    progressPercentage,
+                    notes,
+                    rawRow: s,
+                    linkedCase: matchedCase,
+                  };
+                });
+
+              setTasksRaw(parsedTasks);
+              setTasksLoading(false);
+            } else {
+              setTasksError('الملف المستورد للمهام فارغ أو غير صالح.');
+              setTasksLoading(false);
+            }
+          },
+          error: (err) => {
+            console.error('Error parsing Tasks CSV:', err);
+            setTasksError('فشل في جلب وتفسير ملف المهام والمراحل.');
+            setTasksLoading(false);
+          }
+        });
+
+      } catch (err) {
+        console.error('Fetch tasks and cases error:', err);
+        setTasksError('حدث خطأ غير متوقع أثناء معالجة المهام والقضايا.');
+        setTasksLoading(false);
+      }
+    };
+
     fetchAssets();
     fetchRentals();
+    fetchAgencies();
+    fetchTasksAndCases();
   }, []);
 
-  const loading = activeTab === 'assets' ? assetsLoading : rentalsLoading;
-  const error = activeTab === 'assets' ? assetsError : rentalsError;
+  const loading = activeTab === 'assets' ? assetsLoading : activeTab === 'rentals' ? rentalsLoading : activeTab === 'agencies' ? agenciesLoading : tasksLoading;
+  const error = activeTab === 'assets' ? assetsError : activeTab === 'rentals' ? rentalsError : activeTab === 'agencies' ? agenciesError : tasksError;
+
 
   // Helper to parse Remaining Days safely as a number
   const parseRemainingDays = (str: string): number => {
@@ -564,6 +826,14 @@ export default function App() {
     });
   };
 
+  const handleResetAgencyFilters = () => {
+    setAgencyFilters({
+      poaNumber: '',
+      name: '',
+      status: 'all',
+    });
+  };
+
   const handleTogglePillFilter = (key: keyof FilterState, value: string) => {
     setFilters(prev => {
       const currentVal = prev[key];
@@ -640,7 +910,10 @@ export default function App() {
                 </div>
                 <span className="font-outfit font-bold text-[10px] tracking-[0.25em] text-brand-primary uppercase">RASANA</span>
                 <span className="font-bold text-xs text-slate-400 mt-0.5 flex items-center gap-1">
-                  لوحة متابعة وإدارة الأصول العقارية وسجل الصكوك والعقود
+                  {activeTab === 'assets' && 'لوحة متابعة وإدارة الأصول العقارية وسجل الصكوك'}
+                  {activeTab === 'rentals' && 'لوحة متابعة وتحليل عقود الإيجار والاستحقاقات المالية'}
+                  {activeTab === 'agencies' && 'لوحة تحكم الوكالات والتوكيلات الشرعية'}
+                  {activeTab === 'tasks' && 'لوحة متابعة القضايا والمهام والمراحل الرئيسية'}
                   <ArrowUpRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity text-brand-primary" />
                 </span>
               </div>
@@ -649,7 +922,7 @@ export default function App() {
             {/* Quick Live Indicators (Premium Luxury Design style) */}
             <div className="flex items-center gap-3">
               <button 
-                onClick={handleResetFilters} 
+                onClick={activeTab === 'assets' ? handleResetFilters : activeTab === 'rentals' ? handleResetRentalFilters : activeTab === 'agencies' ? handleResetAgencyFilters : undefined} 
                 className="neu-btn px-4 py-2.5 rounded-xl text-slate-300 font-bold text-xs flex items-center gap-2 hover:text-white transition-all border border-slate-800"
               >
                 <RotateCcw className="w-3.5 h-3.5 text-brand-primary" /> تحديث الفلاتر
@@ -672,31 +945,65 @@ export default function App() {
         
         {/* Modern Prestigious Tab Switcher */}
         <div className="max-w-7xl mx-auto mb-8">
-          <div className="flex p-1.5 bg-[#0F1422] border border-slate-800/80 rounded-2xl max-w-md">
+          <div className="flex p-1.5 bg-[#0F1422] border border-slate-800/80 rounded-2xl max-w-2xl overflow-x-auto">
+            <button
+              onClick={() => setActiveTab('cases')}
+              className={`flex-1 min-w-[110px] flex items-center justify-center gap-2 py-3 px-3 rounded-xl font-bold text-xs transition-all duration-300 ${
+                activeTab === 'cases'
+                  ? 'bg-gradient-to-l from-brand-primary/10 to-amber-500/10 text-brand-primary border border-brand-primary/20 shadow-[0_0_15px_rgba(212,157,47,0.1)]'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40'
+              }`}
+            >
+              <Scale className="w-4 h-4" />
+              القضايا
+            </button>
+            <button
+              onClick={() => setActiveTab('agencies')}
+              className={`flex-1 min-w-[130px] flex items-center justify-center gap-2 py-3 px-3 rounded-xl font-bold text-xs transition-all duration-300 ${
+                activeTab === 'agencies'
+                  ? 'bg-gradient-to-l from-brand-primary/10 to-amber-500/10 text-brand-primary border border-brand-primary/20 shadow-[0_0_15px_rgba(212,157,47,0.1)]'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40'
+              }`}
+            >
+              <Gavel className="w-4 h-4" />
+              سجل الوكالات
+            </button>
+            <button
+              onClick={() => setActiveTab('tasks')}
+              className={`flex-1 min-w-[110px] flex items-center justify-center gap-2 py-3 px-3 rounded-xl font-bold text-xs transition-all duration-300 ${
+                activeTab === 'tasks'
+                  ? 'bg-gradient-to-l from-brand-primary/10 to-amber-500/10 text-brand-primary border border-brand-primary/20 shadow-[0_0_15px_rgba(212,157,47,0.1)]'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40'
+              }`}
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              المهام
+            </button>
             <button
               onClick={() => setActiveTab('assets')}
-              className={`flex-1 flex items-center justify-center gap-2.5 py-3 px-4 rounded-xl font-bold text-xs transition-all duration-300 ${
+              className={`flex-1 min-w-[130px] flex items-center justify-center gap-2 py-3 px-3 rounded-xl font-bold text-xs transition-all duration-300 ${
                 activeTab === 'assets'
                   ? 'bg-gradient-to-l from-brand-primary/10 to-amber-500/10 text-brand-primary border border-brand-primary/20 shadow-[0_0_15px_rgba(212,157,47,0.1)]'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40'
               }`}
             >
               <Building2 className="w-4 h-4" />
-              سجل الأصول العقارية
+              سجل الأصول
             </button>
             <button
               onClick={() => setActiveTab('rentals')}
-              className={`flex-1 flex items-center justify-center gap-2.5 py-3 px-4 rounded-xl font-bold text-xs transition-all duration-300 ${
+              className={`flex-1 min-w-[130px] flex items-center justify-center gap-2 py-3 px-3 rounded-xl font-bold text-xs transition-all duration-300 ${
                 activeTab === 'rentals'
                   ? 'bg-gradient-to-l from-brand-primary/10 to-amber-500/10 text-brand-primary border border-brand-primary/20 shadow-[0_0_15px_rgba(212,157,47,0.1)]'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40'
               }`}
             >
               <FileText className="w-4 h-4" />
-              إدارة عقود الإيجار
+              عقود الإيجار
             </button>
           </div>
         </div>
+
 
         {/* Loading State */}
         {loading && (
@@ -1282,7 +1589,7 @@ export default function App() {
 
             </div>
             </>
-            ) : (
+            ) : activeTab === 'rentals' ? (
               <RentalsSection
                 rentalsRaw={rentalsRaw}
                 rentalFilters={rentalFilters}
@@ -1301,33 +1608,32 @@ export default function App() {
                 formatCurrency={formatCurrency}
                 parseRemainingDays={parseRemainingDays}
               />
+            ) : activeTab === 'agencies' ? (
+              <AgenciesSection
+                agenciesRaw={agenciesRaw}
+                agencyFilters={agencyFilters}
+                setAgencyFilters={setAgencyFilters}
+                handleResetAgencyFilters={handleResetAgencyFilters}
+                parseRemainingDays={parseRemainingDays}
+              />
+            ) : activeTab === 'tasks' ? (
+              <TasksSection
+                tasksRaw={tasksRaw}
+                casesRaw={casesRaw}
+                loading={tasksLoading}
+                error={tasksError}
+                onRefresh={() => {
+                  setTasksLoading(true);
+                  // Trigger reload
+                  window.location.reload();
+                }}
+              />
+            ) : (
+              <CasesSection />
             )}
 
-            {/* General Property Regulatory Information Footer Banner */}
-            <div className="neu-flat p-6 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4 border-r-4 border-brand-primary border-slate-800">
-              <div className="flex items-center gap-3.5 text-right">
-                <div className="p-3 bg-amber-500/10 text-brand-primary rounded-xl">
-                  <Info className="w-6 h-6" />
-                </div>
-                <div>
-                  <h4 className="font-extrabold text-white text-base">نظام التسجيل العيني للأصول العقارية (المملكة العربية السعودية)</h4>
-                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                    تعتبر الصكوك المسجلة عينياً ذات قوة إثبات مطلقة غير قابلة للطعن بموجب الأنظمة الصادرة بقرار مجلس الوزراء وتنسيق الهيئة العامة لعقارات الدولة والسجل العقاري.
-                  </p>
-                </div>
-              </div>
-              
-              <div className="flex gap-3">
-                <a 
-                  href="https://rer.sa/" 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  className="neu-btn px-5 py-2.5 rounded-xl text-xs font-bold text-brand-primary flex items-center gap-1.5 whitespace-nowrap border border-slate-800 hover:border-brand-primary/30"
-                >
-                  المنصة الرسمية للسجل العقاري <ExternalLink className="w-3.5 h-3.5" />
-                </a>
-              </div>
-            </div>
+
+
 
             {/* Elegant Brand Footer (As requested based on attached image) */}
             <div className="flex flex-col items-center justify-center text-center mt-16 pt-16 border-t border-slate-800/40 pb-12">
