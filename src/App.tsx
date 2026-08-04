@@ -33,14 +33,19 @@ import {
   ArrowUpRight,
   Sparkles,
   FileText,
-  Gavel
+  Gavel,
+  BarChart3,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { RealEstateAsset, FilterState, RentalContract, RentalFilterState, AgencyPoa, AgencyFilterState, TaskItem, DetailedCase } from './types';
+import { parseCsvSheet, fetchCsvText } from './utils/fetchCsv';
 import RentalsSection from './components/RentalsSection';
 import AgenciesSection from './components/AgenciesSection';
 import TasksSection from './components/TasksSection';
 import CasesSection from './components/CasesSection';
+import { AnalyticsSection } from './components/AnalyticsSection';
 
 // Google Sheet CSV URLs
 const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSQij-f5Lsj-x3qEMZRX3VPsAEOCBd09O8BqA8zugUJPB_8TRzfvYYB04hRgb6Tpg6uNDeRmXGpqgGZ/pub?gid=304190621&single=true&output=csv';
@@ -114,7 +119,25 @@ const POA_COL = {
 };
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'assets' | 'rentals' | 'agencies' | 'tasks' | 'cases'>('cases');
+  const [activeTab, setActiveTab] = useState<'assets' | 'rentals' | 'agencies' | 'tasks' | 'cases' | 'analytics'>('cases');
+
+  // Theme State (#f0f0f3 light vs dark)
+  const [themeMode, setThemeMode] = useState<'dark' | 'light'>(() => {
+    return (localStorage.getItem('themeMode') as 'dark' | 'light') || 'dark';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('themeMode', themeMode);
+    if (themeMode === 'light') {
+      document.documentElement.classList.add('theme-light');
+    } else {
+      document.documentElement.classList.remove('theme-light');
+    }
+  }, [themeMode]);
+
+  const toggleTheme = () => {
+    setThemeMode(prev => (prev === 'dark' ? 'light' : 'dark'));
+  };
 
   // Assets State
   const [rawData, setRawData] = useState<RealEstateAsset[]>([]);
@@ -178,55 +201,44 @@ export default function App() {
   // Load Data
   useEffect(() => {
     // 1. Fetch Assets
-    const fetchAssets = () => {
+    const fetchAssets = async () => {
       try {
         setAssetsLoading(true);
-        Papa.parse(SHEET_URL, {
-          download: true,
-          header: false,
-          skipEmptyLines: true,
-          complete: (results) => {
-            if (results.data && results.data.length > 1) {
-              const rows = results.data.slice(1) as string[][];
-              const parsed: RealEstateAsset[] = rows
-                .filter(row => row.length > 5 && row[COL.OWNERSHIP])
-                .map(row => {
-                  const sanitized = row.map(cell => (cell ? cell.trim() : ''));
-                  const regVal = sanitized[COL.REGISTERED] ? sanitized[COL.REGISTERED].toUpperCase() : '';
-                  const registeredStatus: 'مسجل عينيا' | 'غير مسجل' = regVal === 'TRUE' ? 'مسجل عينيا' : 'غير مسجل';
+        const rowsData = await parseCsvSheet(SHEET_URL);
+        if (rowsData && rowsData.length > 1) {
+          const rows = rowsData.slice(1);
+          const parsed: RealEstateAsset[] = rows
+            .filter(row => row.length > 5 && row[COL.OWNERSHIP])
+            .map(row => {
+              const sanitized = row.map(cell => (cell ? cell.trim() : ''));
+              const regVal = sanitized[COL.REGISTERED] ? sanitized[COL.REGISTERED].toUpperCase() : '';
+              const registeredStatus: 'مسجل عينيا' | 'غير مسجل' = regVal === 'TRUE' ? 'مسجل عينيا' : 'غير مسجل';
 
-                  return {
-                    ownership: sanitized[COL.OWNERSHIP] || '',
-                    idNum: sanitized[COL.ID_NUM] || '',
-                    genNum: sanitized[COL.GEN_NUM] || '',
-                    propNum: sanitized[COL.PROP_NUM] || '',
-                    docNum: sanitized[COL.DOC_NUM] || '',
-                    deedDate: sanitized[COL.DEED_DATE] || '',
-                    area: sanitized[COL.AREA] || '',
-                    planNum: sanitized[COL.PLAN_NUM] || '',
-                    pieceNum: sanitized[COL.PIECE_NUM] || '',
-                    district: sanitized[COL.DISTRICT] || '',
-                    city: sanitized[COL.CITY] || '',
-                    notes: sanitized[COL.NOTES] || '',
-                    ownershipType: sanitized[COL.OWNERSHIP_TYPE] || '',
-                    registered: registeredStatus,
-                    linkReg: sanitized[COL.LINK_REG] || '',
-                    linkMoj: sanitized[COL.LINK_MOJ] || '',
-                  };
-                });
-              setRawData(parsed);
-              setAssetsLoading(false);
-            } else {
-              setAssetsError('الملف المستورد فارغ أو غير صالح للأصول.');
-              setAssetsLoading(false);
-            }
-          },
-          error: (err) => {
-            console.error('Error parsing Assets CSV:', err);
-            setAssetsError('فشل في جلب وتفسير ملف الأصول العقارية.');
-            setAssetsLoading(false);
-          }
-        });
+              return {
+                ownership: sanitized[COL.OWNERSHIP] || '',
+                idNum: sanitized[COL.ID_NUM] || '',
+                genNum: sanitized[COL.GEN_NUM] || '',
+                propNum: sanitized[COL.PROP_NUM] || '',
+                docNum: sanitized[COL.DOC_NUM] || '',
+                deedDate: sanitized[COL.DEED_DATE] || '',
+                area: sanitized[COL.AREA] || '',
+                planNum: sanitized[COL.PLAN_NUM] || '',
+                pieceNum: sanitized[COL.PIECE_NUM] || '',
+                district: sanitized[COL.DISTRICT] || '',
+                city: sanitized[COL.CITY] || '',
+                notes: sanitized[COL.NOTES] || '',
+                ownershipType: sanitized[COL.OWNERSHIP_TYPE] || '',
+                registered: registeredStatus,
+                linkReg: sanitized[COL.LINK_REG] || '',
+                linkMoj: sanitized[COL.LINK_MOJ] || '',
+              };
+            });
+          setRawData(parsed);
+          setAssetsLoading(false);
+        } else {
+          setAssetsError('الملف المستورد فارغ أو غير صالح للأصول.');
+          setAssetsLoading(false);
+        }
       } catch (err) {
         console.error('Fetch assets error:', err);
         setAssetsError('حدث خطأ غير متوقع أثناء معالجة الأصول.');
@@ -235,60 +247,49 @@ export default function App() {
     };
 
     // 2. Fetch Rentals
-    const fetchRentals = () => {
+    const fetchRentals = async () => {
       try {
         setRentalsLoading(true);
-        Papa.parse(RENTAL_SHEET_URL, {
-          download: true,
-          header: false,
-          skipEmptyLines: true,
-          complete: (results) => {
-            if (results.data && results.data.length > 1) {
-              const rows = results.data.slice(1) as string[][];
-              const parsed: RentalContract[] = rows
-                .filter(row => row.length > 1 && row[RENT_COL.CONTRACT_ID])
-                .map(row => {
-                  const sanitized = row.map(cell => (cell ? cell.trim() : ''));
-                  return {
-                    contractId: sanitized[RENT_COL.CONTRACT_ID] || '',
-                    startDate: sanitized[RENT_COL.START_DATE] || '',
-                    endDate: sanitized[RENT_COL.END_DATE] || '',
-                    remainingDays: sanitized[RENT_COL.REMAINING_DAYS] || '',
-                    tenantName: sanitized[RENT_COL.TENANT_NAME] || '',
-                    unifiedId: sanitized[RENT_COL.UNIFIED_ID] || '',
-                    annualRent: sanitized[RENT_COL.ANNUAL_RENT] || '',
-                    totalPayments: sanitized[RENT_COL.TOTAL_PAYMENTS] || '',
-                    paymentTerm: sanitized[RENT_COL.PAYMENT_TERM] || '',
-                    dueDate: sanitized[RENT_COL.DUE_DATE] || '',
-                    dueRemainingDays: sanitized[RENT_COL.DUE_REMAINING_DAYS] || '',
-                    propNum: sanitized[RENT_COL.PROP_NUM] || '',
-                    docNum: sanitized[RENT_COL.DOC_NUM] || '',
-                    area: sanitized[RENT_COL.AREA] || '',
-                    district: sanitized[RENT_COL.DISTRICT] || '',
-                    city: sanitized[RENT_COL.CITY] || '',
-                    notes: sanitized[RENT_COL.NOTES] || '',
-                    ownership: sanitized[RENT_COL.OWNERSHIP] || '',
-                    registered: sanitized[RENT_COL.REGISTERED] || '',
-                    linkReg: sanitized[RENT_COL.LINK_REG] || '',
-                    linkMoj: sanitized[RENT_COL.LINK_MOJ] || '',
-                    rentalLink: sanitized[RENT_COL.RENTAL_LINK] || '',
-                    caseId: sanitized[RENT_COL.CASE_ID] || '',
-                    caseStatus: sanitized[RENT_COL.CASE_STATUS] || '',
-                  };
-                });
-              setRentalsRaw(parsed);
-              setRentalsLoading(false);
-            } else {
-              setRentalsError('الملف المستورد لعقود الإيجار فارغ أو غير صالح.');
-              setRentalsLoading(false);
-            }
-          },
-          error: (err) => {
-            console.error('Error parsing Rentals CSV:', err);
-            setRentalsError('فشل في جلب وتفسير ملف عقود الإيجار.');
-            setRentalsLoading(false);
-          }
-        });
+        const rowsData = await parseCsvSheet(RENTAL_SHEET_URL);
+        if (rowsData && rowsData.length > 1) {
+          const rows = rowsData.slice(1);
+          const parsed: RentalContract[] = rows
+            .filter(row => row.length > 1 && row[RENT_COL.CONTRACT_ID])
+            .map(row => {
+              const sanitized = row.map(cell => (cell ? cell.trim() : ''));
+              return {
+                contractId: sanitized[RENT_COL.CONTRACT_ID] || '',
+                startDate: sanitized[RENT_COL.START_DATE] || '',
+                endDate: sanitized[RENT_COL.END_DATE] || '',
+                remainingDays: sanitized[RENT_COL.REMAINING_DAYS] || '',
+                tenantName: sanitized[RENT_COL.TENANT_NAME] || '',
+                unifiedId: sanitized[RENT_COL.UNIFIED_ID] || '',
+                annualRent: sanitized[RENT_COL.ANNUAL_RENT] || '',
+                totalPayments: sanitized[RENT_COL.TOTAL_PAYMENTS] || '',
+                paymentTerm: sanitized[RENT_COL.PAYMENT_TERM] || '',
+                dueDate: sanitized[RENT_COL.DUE_DATE] || '',
+                dueRemainingDays: sanitized[RENT_COL.DUE_REMAINING_DAYS] || '',
+                propNum: sanitized[RENT_COL.PROP_NUM] || '',
+                docNum: sanitized[RENT_COL.DOC_NUM] || '',
+                area: sanitized[RENT_COL.AREA] || '',
+                district: sanitized[RENT_COL.DISTRICT] || '',
+                city: sanitized[RENT_COL.CITY] || '',
+                notes: sanitized[RENT_COL.NOTES] || '',
+                ownership: sanitized[RENT_COL.OWNERSHIP] || '',
+                registered: sanitized[RENT_COL.REGISTERED] || '',
+                linkReg: sanitized[RENT_COL.LINK_REG] || '',
+                linkMoj: sanitized[RENT_COL.LINK_MOJ] || '',
+                rentalLink: sanitized[RENT_COL.RENTAL_LINK] || '',
+                caseId: sanitized[RENT_COL.CASE_ID] || '',
+                caseStatus: sanitized[RENT_COL.CASE_STATUS] || '',
+              };
+            });
+          setRentalsRaw(parsed);
+          setRentalsLoading(false);
+        } else {
+          setRentalsError('الملف المستورد لعقود الإيجار فارغ أو غير صالح.');
+          setRentalsLoading(false);
+        }
       } catch (err) {
         console.error('Fetch rentals error:', err);
         setRentalsError('حدث خطأ غير متوقع أثناء معالجة عقود الإيجار.');
@@ -297,48 +298,37 @@ export default function App() {
     };
 
     // 3. Fetch Agencies (POAs)
-    const fetchAgencies = () => {
+    const fetchAgencies = async () => {
       try {
         setAgenciesLoading(true);
-        Papa.parse(POA_SHEET_URL, {
-          download: true,
-          header: false,
-          skipEmptyLines: true,
-          complete: (results) => {
-            if (results.data && results.data.length > 1) {
-              const rows = results.data.slice(1) as string[][];
-              const parsed: AgencyPoa[] = rows
-                .filter(row => row.length > 1 && row[POA_COL.POA_NUMBER])
-                .map(row => {
-                  const sanitized = row.map(cell => (cell ? cell.trim() : ''));
-                  return {
-                    poaNumber: sanitized[POA_COL.POA_NUMBER] || '',
-                    hijriDate: sanitized[POA_COL.HIJRI_DATE] || '',
-                    gregorianDate: sanitized[POA_COL.GREGORIAN_DATE] || '',
-                    expiryDate: sanitized[POA_COL.EXPIRY_DATE] || '',
-                    remainingDays: sanitized[POA_COL.REMAINING_DAYS] || '',
-                    principalName: sanitized[POA_COL.PRINCIPAL_NAME] || '',
-                    principalId: sanitized[POA_COL.PRINCIPAL_ID] || '',
-                    agentName: sanitized[POA_COL.AGENT_NAME] || '',
-                    agentId: sanitized[POA_COL.AGENT_ID] || '',
-                    agencyTitle: sanitized[POA_COL.AGENCY_TITLE] || '',
-                    notes: sanitized[POA_COL.NOTES] || '',
-                    docLink: sanitized[POA_COL.DOC_LINK] || '',
-                  };
-                });
-              setAgenciesRaw(parsed);
-              setAgenciesLoading(false);
-            } else {
-              setAgenciesError('الملف المستورد للوكالات فارغ أو غير صالح.');
-              setAgenciesLoading(false);
-            }
-          },
-          error: (err) => {
-            console.error('Error parsing Agencies CSV:', err);
-            setAgenciesError('فشل في جلب وتفسير ملف الوكالات.');
-            setAgenciesLoading(false);
-          }
-        });
+        const rowsData = await parseCsvSheet(POA_SHEET_URL);
+        if (rowsData && rowsData.length > 1) {
+          const rows = rowsData.slice(1);
+          const parsed: AgencyPoa[] = rows
+            .filter(row => row.length > 1 && row[POA_COL.POA_NUMBER])
+            .map(row => {
+              const sanitized = row.map(cell => (cell ? cell.trim() : ''));
+              return {
+                poaNumber: sanitized[POA_COL.POA_NUMBER] || '',
+                hijriDate: sanitized[POA_COL.HIJRI_DATE] || '',
+                gregorianDate: sanitized[POA_COL.GREGORIAN_DATE] || '',
+                expiryDate: sanitized[POA_COL.EXPIRY_DATE] || '',
+                remainingDays: sanitized[POA_COL.REMAINING_DAYS] || '',
+                principalName: sanitized[POA_COL.PRINCIPAL_NAME] || '',
+                principalId: sanitized[POA_COL.PRINCIPAL_ID] || '',
+                agentName: sanitized[POA_COL.AGENT_NAME] || '',
+                agentId: sanitized[POA_COL.AGENT_ID] || '',
+                agencyTitle: sanitized[POA_COL.AGENCY_TITLE] || '',
+                notes: sanitized[POA_COL.NOTES] || '',
+                docLink: sanitized[POA_COL.DOC_LINK] || '',
+              };
+            });
+          setAgenciesRaw(parsed);
+          setAgenciesLoading(false);
+        } else {
+          setAgenciesError('الملف المستورد للوكالات فارغ أو غير صالح.');
+          setAgenciesLoading(false);
+        }
       } catch (err) {
         console.error('Fetch agencies error:', err);
         setAgenciesError('حدث خطأ غير متوقع أثناء معالجة الوكالات.');
@@ -353,162 +343,133 @@ export default function App() {
         setTasksError(null);
 
         // Fetch Cases Sheet
-        const casesPromise = new Promise<DetailedCase[]>((resolve) => {
-          Papa.parse(CASES_SHEET_URL, {
-            download: true,
-            header: false,
-            skipEmptyLines: true,
-            complete: (results) => {
-              if (results.data && results.data.length > 1) {
-                const rows = results.data.slice(1) as string[][];
-                const parsedCases: DetailedCase[] = rows
-                  .filter(row => row.length > 0 && row.some(cell => cell.trim()))
-                  .map(row => {
-                    const s = row.map(cell => (cell ? cell.trim() : ''));
-                    return {
-                      caseNumber: s[0] || '',
-                      classification: s[1] || '',
-                      caseType: s[2] || '',
-                      caseDate: s[3] || '',
-                      plaintiff: s[4] || '',
-                      plaintiffId: s[5] || '',
-                      defendant: s[6] || '',
-                      defendantId: s[7] || '',
-                      claims: s[8] || '',
-                      court: s[9] || '',
-                      circuit: s[10] || '',
-                      driveLink: s[11] || '',
-                      caseStatus: s[12] || '',
-                      caseManager: s[13] || '',
-                      currentSituation: s[15] || '',
-                      fileNameQ: s[16] || '',
-                      requestType: s[17] || '',
-                      completedCases: s[18] || '',
-                      reportDate: s[19] || '',
-                      notes: s[20] || '',
-                      instrumentDeed: s[21] || '',
-                      rawRow: s,
-                    };
-                  });
-                resolve(parsedCases);
-              } else {
-                resolve([]);
-              }
-            },
-            error: (err) => {
-              console.error('Cases parse error:', err);
-              resolve([]);
-            }
-          });
-        });
-
-        const parsedCases = await casesPromise;
-        setCasesRaw(parsedCases);
+        const casesRowsData = await parseCsvSheet(CASES_SHEET_URL);
+        let parsedCases: DetailedCase[] = [];
+        if (casesRowsData && casesRowsData.length > 1) {
+          const rows = casesRowsData.slice(1);
+          parsedCases = rows
+            .filter(row => row.length > 0 && row.some(cell => cell.trim()))
+            .map(row => {
+              const s = row.map(cell => (cell ? cell.trim() : ''));
+              return {
+                caseNumber: s[0] || '',
+                classification: s[1] || '',
+                caseType: s[2] || '',
+                caseDate: s[3] || '',
+                plaintiff: s[4] || '',
+                plaintiffId: s[5] || '',
+                defendant: s[6] || '',
+                defendantId: s[7] || '',
+                claims: s[8] || '',
+                court: s[9] || '',
+                circuit: s[10] || '',
+                driveLink: s[11] || '',
+                caseStatus: s[12] || '',
+                caseManager: s[13] || '',
+                currentSituation: s[15] || '',
+                fileNameQ: s[16] || '',
+                requestType: s[17] || '',
+                completedCases: s[18] || '',
+                reportDate: s[19] || '',
+                notes: s[20] || '',
+                instrumentDeed: s[21] || '',
+                rawRow: s,
+              };
+            });
+          setCasesRaw(parsedCases);
+        }
 
         // Fetch Tasks Sheet
-        Papa.parse(TASKS_SHEET_URL, {
-          download: true,
-          header: false,
-          skipEmptyLines: true,
-          complete: (results) => {
-            if (results.data && results.data.length > 1) {
-              const rows = results.data.slice(1) as string[][];
-              const parsedTasks: TaskItem[] = rows
-                .filter(row => row.length > 0 && row.some(cell => cell.trim()))
-                .map((row, idx) => {
-                  const s = row.map(cell => (cell ? cell.trim() : ''));
-                  const mainPhase = s[0] || '';
-                  const taskName = s[1] || '';
-                  const colC = s[2] || '';
-                  const importance = s[3] || s[2] || 'عادية'; // Column D (درجة الأهمية)
-                  const colE = s[4] || ''; // Column E (نسبة انجاز المهمة)
-                  const completionDate = s[5] || s[4] || s[3] || ''; // Column F (تاريخ انجاز المهمة)
-                  const colG = s[6] || '';
-                  const assignee = s[7] || s[5] || 'غير محدد'; // Column H (المسؤول عن المهمة)
-                  const statusColL = s[11] || s[10] || s[6] || colE || ''; // Column L (الحالة)
-                  const notes = s[12] || s[8] || s[7] || colG || '';
+        const tasksRowsData = await parseCsvSheet(TASKS_SHEET_URL);
+        if (tasksRowsData && tasksRowsData.length > 1) {
+          const rows = tasksRowsData.slice(1);
+          const parsedTasks: TaskItem[] = rows
+            .filter(row => row.length > 0 && row.some(cell => cell.trim()))
+            .map((row, idx) => {
+              const s = row.map(cell => (cell ? cell.trim() : ''));
+              const mainPhase = s[0] || '';
+              const taskName = s[1] || '';
+              const colC = s[2] || '';
+              const importance = s[3] || s[2] || 'عادية';
+              const colE = s[4] || '';
+              const completionDate = s[5] || s[4] || s[3] || '';
+              const colG = s[6] || '';
+              const assignee = s[7] || s[5] || 'غير محدد';
+              const statusColL = s[11] || s[10] || s[6] || colE || '';
+              const notes = s[12] || s[8] || s[7] || colG || '';
 
-                  // Parse progress percentage (Column E - خانة E)
-                  let progressPercentage = 0;
-                  const combinedText = `${colE} ${statusColL} ${s.join(' ')}`.toLowerCase();
+              let progressPercentage = 0;
+              const combinedText = `${colE} ${statusColL} ${s.join(' ')}`.toLowerCase();
 
-                  if (
-                    colE.includes('100') ||
-                    colE.includes('مكتمل') ||
-                    colE.includes('منجز') ||
-                    colE.includes('تم') ||
-                    colE.includes('جاهز') ||
-                    colE.includes('مغلق') ||
-                    colE.includes('انتهت') ||
-                    colE.trim() === '1' ||
-                    colE.trim() === 'نعم' ||
-                    combinedText.includes('100%') ||
-                    combinedText.includes('مكتملة') ||
-                    combinedText.includes('مكتمل') ||
-                    combinedText.includes('منجزة') ||
-                    combinedText.includes('تم الإنجاز')
-                  ) {
-                    progressPercentage = 100;
-                  } else if (colE.includes('جاري') || colE.includes('قيد') || combinedText.includes('جاري العمل')) {
-                    progressPercentage = 50;
-                  } else {
-                    const numMatch = colE.match(/(\d+)/) || combinedText.match(/(\d+)/);
-                    if (numMatch) {
-                      const parsedVal = parseInt(numMatch[1], 10);
-                      if (parsedVal >= 100) progressPercentage = 100;
-                      else if (parsedVal > 0) progressPercentage = parsedVal;
-                    }
+              if (
+                colE.includes('100') ||
+                colE.includes('مكتمل') ||
+                colE.includes('منجز') ||
+                colE.includes('تم') ||
+                colE.includes('جاهز') ||
+                colE.includes('مغلق') ||
+                colE.includes('انتهت') ||
+                colE.trim() === '1' ||
+                colE.trim() === 'نعم' ||
+                combinedText.includes('100%') ||
+                combinedText.includes('مكتملة') ||
+                combinedText.includes('مكتمل') ||
+                combinedText.includes('منجزة') ||
+                combinedText.includes('تم الإنجاز')
+              ) {
+                progressPercentage = 100;
+              } else if (colE.includes('جاري') || colE.includes('قيد') || combinedText.includes('جاري العمل')) {
+                progressPercentage = 50;
+              } else {
+                const numMatch = colE.match(/(\d+)/) || combinedText.match(/(\d+)/);
+                if (numMatch) {
+                  const parsedVal = parseInt(numMatch[1], 10);
+                  if (parsedVal >= 100) progressPercentage = 100;
+                  else if (parsedVal > 0) progressPercentage = parsedVal;
+                }
+              }
+
+              const statusRaw = statusColL || colE || (progressPercentage === 100 ? 'مكتملة' : progressPercentage > 0 ? 'جاري العمل' : 'لم تبدأ');
+
+              // Cross-linking matching
+              let matchedCase: DetailedCase | undefined;
+              if (mainPhase) {
+                const phaseLower = mainPhase.toLowerCase();
+                matchedCase = parsedCases.find(c => {
+                  if (c.fileNameQ && (phaseLower.includes(c.fileNameQ.toLowerCase()) || c.fileNameQ.toLowerCase().includes(phaseLower))) {
+                    return true;
                   }
-
-                  const statusRaw = statusColL || colE || (progressPercentage === 100 ? 'مكتملة' : progressPercentage > 0 ? 'جاري العمل' : 'لم تبدأ');
-
-                  // Cross-linking matching
-                  let matchedCase: DetailedCase | undefined;
-                  if (mainPhase) {
-                    const phaseLower = mainPhase.toLowerCase();
-                    matchedCase = parsedCases.find(c => {
-                      if (c.fileNameQ && (phaseLower.includes(c.fileNameQ.toLowerCase()) || c.fileNameQ.toLowerCase().includes(phaseLower))) {
-                        return true;
-                      }
-                      if (c.caseNumber && (phaseLower.includes(c.caseNumber) || c.caseNumber.includes(phaseLower))) {
-                        return true;
-                      }
-                      return false;
-                    });
+                  if (c.caseNumber && (phaseLower.includes(c.caseNumber) || c.caseNumber.includes(phaseLower))) {
+                    return true;
                   }
-
-                  return {
-                    id: `task-${idx}-${Date.now()}`,
-                    mainPhase,
-                    taskName,
-                    importance,
-                    startDate: colC,
-                    endDate: completionDate,
-                    assignee,
-                    status: statusRaw,
-                    progressPercentage,
-                    notes,
-                    rawRow: s,
-                    linkedCase: matchedCase,
-                  };
+                  return false;
                 });
+              }
 
-              setTasksRaw(parsedTasks);
-              setTasksLoading(false);
-            } else {
-              setTasksError('الملف المستورد للمهام فارغ أو غير صالح.');
-              setTasksLoading(false);
-            }
-          },
-          error: (err) => {
-            console.error('Error parsing Tasks CSV:', err);
-            setTasksError('فشل في جلب وتفسير ملف المهام والمراحل.');
-            setTasksLoading(false);
-          }
-        });
+              return {
+                id: `task-${idx}-${Date.now()}`,
+                mainPhase,
+                taskName,
+                importance,
+                startDate: colC,
+                endDate: completionDate,
+                assignee,
+                status: statusRaw,
+                progressPercentage,
+                notes,
+                rawRow: s,
+                linkedCase: matchedCase,
+              };
+            });
 
+          setTasksRaw(parsedTasks);
+          setTasksLoading(false);
+        } else {
+          setTasksError('الملف المستورد للمهام فارغ أو غير صالح.');
+          setTasksLoading(false);
+        }
       } catch (err) {
-        console.error('Fetch tasks and cases error:', err);
+        console.error('Fetch tasks & cases error:', err);
         setTasksError('حدث خطأ غير متوقع أثناء معالجة المهام والقضايا.');
         setTasksLoading(false);
       }
@@ -919,8 +880,26 @@ export default function App() {
               </div>
             </a>
             
-            {/* Quick Live Indicators (Premium Luxury Design style) */}
+            {/* Quick Live Indicators & Theme Toggle */}
             <div className="flex items-center gap-3">
+              <button
+                onClick={toggleTheme}
+                className="neu-btn px-3.5 py-2.5 rounded-xl text-slate-200 font-bold text-xs flex items-center gap-2 hover:text-white transition-all border border-slate-800"
+                title="تغيير مظهر الموقع كامل (فاتح / داكن)"
+              >
+                {themeMode === 'light' ? (
+                  <>
+                    <Moon className="w-4 h-4 text-amber-500" />
+                    <span>المظهر الداكن</span>
+                  </>
+                ) : (
+                  <>
+                    <Sun className="w-4 h-4 text-amber-400" />
+                    <span>المظهر الفاتح (#f0f0f3)</span>
+                  </>
+                )}
+              </button>
+
               <button 
                 onClick={activeTab === 'assets' ? handleResetFilters : activeTab === 'rentals' ? handleResetRentalFilters : activeTab === 'agencies' ? handleResetAgencyFilters : undefined} 
                 className="neu-btn px-4 py-2.5 rounded-xl text-slate-300 font-bold text-xs flex items-center gap-2 hover:text-white transition-all border border-slate-800"
@@ -945,7 +924,7 @@ export default function App() {
         
         {/* Modern Prestigious Tab Switcher */}
         <div className="max-w-7xl mx-auto mb-8">
-          <div className="flex p-1.5 bg-[#0F1422] border border-slate-800/80 rounded-2xl max-w-2xl overflow-x-auto">
+          <div className="flex p-1.5 bg-[#0F1422] border border-slate-800/80 rounded-2xl max-w-3xl overflow-x-auto">
             <button
               onClick={() => setActiveTab('cases')}
               className={`flex-1 min-w-[110px] flex items-center justify-center gap-2 py-3 px-3 rounded-xl font-bold text-xs transition-all duration-300 ${
@@ -958,8 +937,19 @@ export default function App() {
               القضايا
             </button>
             <button
+              onClick={() => setActiveTab('analytics')}
+              className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-3 px-3 rounded-xl font-bold text-xs transition-all duration-300 ${
+                activeTab === 'analytics'
+                  ? 'bg-gradient-to-l from-brand-primary/10 to-amber-500/10 text-brand-primary border border-brand-primary/20 shadow-[0_0_15px_rgba(212,157,47,0.1)]'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40'
+              }`}
+            >
+              <BarChart3 className="w-4 h-4" />
+              التحاليل
+            </button>
+            <button
               onClick={() => setActiveTab('agencies')}
-              className={`flex-1 min-w-[130px] flex items-center justify-center gap-2 py-3 px-3 rounded-xl font-bold text-xs transition-all duration-300 ${
+              className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-3 px-3 rounded-xl font-bold text-xs transition-all duration-300 ${
                 activeTab === 'agencies'
                   ? 'bg-gradient-to-l from-brand-primary/10 to-amber-500/10 text-brand-primary border border-brand-primary/20 shadow-[0_0_15px_rgba(212,157,47,0.1)]'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40'
@@ -970,7 +960,7 @@ export default function App() {
             </button>
             <button
               onClick={() => setActiveTab('tasks')}
-              className={`flex-1 min-w-[110px] flex items-center justify-center gap-2 py-3 px-3 rounded-xl font-bold text-xs transition-all duration-300 ${
+              className={`flex-1 min-w-[100px] flex items-center justify-center gap-2 py-3 px-3 rounded-xl font-bold text-xs transition-all duration-300 ${
                 activeTab === 'tasks'
                   ? 'bg-gradient-to-l from-brand-primary/10 to-amber-500/10 text-brand-primary border border-brand-primary/20 shadow-[0_0_15px_rgba(212,157,47,0.1)]'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40'
@@ -981,7 +971,7 @@ export default function App() {
             </button>
             <button
               onClick={() => setActiveTab('assets')}
-              className={`flex-1 min-w-[130px] flex items-center justify-center gap-2 py-3 px-3 rounded-xl font-bold text-xs transition-all duration-300 ${
+              className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-3 px-3 rounded-xl font-bold text-xs transition-all duration-300 ${
                 activeTab === 'assets'
                   ? 'bg-gradient-to-l from-brand-primary/10 to-amber-500/10 text-brand-primary border border-brand-primary/20 shadow-[0_0_15px_rgba(212,157,47,0.1)]'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40'
@@ -992,7 +982,7 @@ export default function App() {
             </button>
             <button
               onClick={() => setActiveTab('rentals')}
-              className={`flex-1 min-w-[130px] flex items-center justify-center gap-2 py-3 px-3 rounded-xl font-bold text-xs transition-all duration-300 ${
+              className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-3 px-3 rounded-xl font-bold text-xs transition-all duration-300 ${
                 activeTab === 'rentals'
                   ? 'bg-gradient-to-l from-brand-primary/10 to-amber-500/10 text-brand-primary border border-brand-primary/20 shadow-[0_0_15px_rgba(212,157,47,0.1)]'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40'
@@ -1628,6 +1618,8 @@ export default function App() {
                   window.location.reload();
                 }}
               />
+            ) : activeTab === 'analytics' ? (
+              <AnalyticsSection casesRaw={casesRaw} />
             ) : (
               <CasesSection />
             )}

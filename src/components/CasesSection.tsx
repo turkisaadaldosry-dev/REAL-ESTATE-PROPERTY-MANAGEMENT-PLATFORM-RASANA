@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import Papa from 'papaparse';
+import { fetchCsvText } from '../utils/fetchCsv';
 import {
   Scale,
   Search,
@@ -166,12 +167,12 @@ export default function CasesSection() {
       setLoading(true);
       setError(null);
 
-      // Fetch all 4 Google Sheets in parallel using PapaParse
+      // Fetch all 4 Google Sheets in parallel using fetchCsvText
       const [casesRes, hearingsRes, memosRes, judgmentsRes] = await Promise.all([
-        fetch(CASES_SHEET_URL).then(r => r.text()),
-        fetch(HEARINGS_SHEET_URL).then(r => r.text()),
-        fetch(MEMOS_SHEET_URL).then(r => r.text()),
-        fetch(JUDGMENTS_SHEET_URL).then(r => r.text()),
+        fetchCsvText(CASES_SHEET_URL),
+        fetchCsvText(HEARINGS_SHEET_URL),
+        fetchCsvText(MEMOS_SHEET_URL),
+        fetchCsvText(JUDGMENTS_SHEET_URL),
       ]);
 
       // 1. Parse Cases
@@ -1393,6 +1394,14 @@ export default function CasesSection() {
             {/* Main Info Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
               
+              {/* 0. المسؤول عن القضية (N) */}
+              <div className="p-4 bg-brand-primary/10 border border-brand-primary/30 rounded-2xl space-y-1">
+                <span className="text-brand-primary block font-bold flex items-center gap-1.5">
+                  <User className="w-4 h-4 text-brand-primary" /> المسؤول عن القضية (خانة N)
+                </span>
+                <p className="font-black text-amber-300 text-sm">{selectedCaseModal.caseManager || 'غير محدد'}</p>
+              </div>
+
               {/* 1. المحكمة والدائرة (J & K) */}
               <div className="p-4 bg-[#0A0D16] border border-slate-800 rounded-2xl space-y-1">
                 <span className="text-slate-400 block font-semibold">1. المحكمة والدائرة (خانة J & K)</span>
@@ -1421,6 +1430,18 @@ export default function CasesSection() {
               <div className="p-4 bg-[#0A0D16] border border-slate-800 rounded-2xl space-y-1">
                 <span className="text-slate-400 block font-semibold">5. المدعى عليه (خانة G)</span>
                 <p className="font-bold text-white text-sm">{selectedCaseModal.defendant || '-'}</p>
+              </div>
+
+              {/* حالة القضية (M) */}
+              <div className="p-4 bg-[#0A0D16] border border-slate-800 rounded-2xl space-y-1">
+                <span className="text-slate-400 block font-semibold">حالة القضية (خانة M)</span>
+                <p className="font-bold text-emerald-400 text-sm">{selectedCaseModal.caseStatus || '-'}</p>
+              </div>
+
+              {/* الموقف الحالي (P) */}
+              <div className="p-4 bg-[#0A0D16] border border-slate-800 rounded-2xl space-y-1">
+                <span className="text-slate-400 block font-semibold">الموقف الحالي / القضية حالها (خانة P)</span>
+                <p className="font-bold text-sky-400 text-sm">{selectedCaseModal.currentSituation || '-'}</p>
               </div>
 
               {/* 8. ملف القضية (L) - link check */}

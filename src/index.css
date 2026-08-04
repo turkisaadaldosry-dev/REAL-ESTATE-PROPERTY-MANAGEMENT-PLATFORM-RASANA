@@ -204,4 +204,266 @@ html {
   background-color: #141a2e;
 }
 
+/* =======================================
+   Light Theme Customization (#f0f0f3)
+   Soft, gentle, high-legibility styling for tables, cards, banners & filters
+   ======================================= */
+html.theme-light {
+  --bg: #f0f0f3;
+  --card: #ffffff;
+  --shadow-dark: #d1d5db;
+  --shadow-light: #ffffff;
+  --color-brand-bg: #f0f0f3;
+  --color-brand-text: #0f172a;
+  background-color: #f0f0f3 !important;
+  color: #0f172a !important;
+}
+
+html.theme-light body {
+  background-color: #f0f0f3 !important;
+  color: #0f172a !important;
+}
+
+/* Remove Dark Gradients in Light Mode */
+html.theme-light [class*="bg-gradient-to-"],
+html.theme-light .bg-gradient-to-r,
+html.theme-light .bg-gradient-to-br,
+html.theme-light .bg-gradient-to-tr,
+html.theme-light .bg-gradient-to-b,
+html.theme-light .bg-gradient-to-t {
+  background-image: none !important;
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Preserve Active CTA Brand Gradients */
+html.theme-light .bg-gradient-to-r.from-brand-primary,
+html.theme-light .bg-gradient-to-r.from-amber-500,
+html.theme-light .bg-gradient-to-r.to-amber-500 {
+  background-image: linear-gradient(to right, #e5a83b, #f59e0b) !important;
+  background-color: transparent !important;
+  color: #0f172a !important;
+}
+
+/* Base Dark Containers & Custom Arbitrary Hex Backgrounds converted to Light Cards */
+html.theme-light [class*="bg-\[\#"],
+html.theme-light .bg-\[\#0A0D16\],
+html.theme-light .bg-\[\#0a0d16\],
+html.theme-light .bg-\[\#101626\],
+html.theme-light .bg-\[\#0D1220\],
+html.theme-light .bg-\[\#0d1220\],
+html.theme-light .bg-\[\#0F1422\],
+html.theme-light .bg-\[\#0f1422\],
+html.theme-light .bg-\[\#12192C\],
+html.theme-light .bg-\[\#12192c\],
+html.theme-light .bg-\[\#141a2e\],
+html.theme-light .bg-\[\#0E131F\],
+html.theme-light .bg-\[\#0b0e17\],
+html.theme-light .bg-\[\#0B0E17\],
+html.theme-light .bg-\[\#121926\],
+html.theme-light .bg-\[\#1C2538\],
+html.theme-light .bg-slate-950,
+html.theme-light .bg-slate-900,
+html.theme-light .bg-slate-900\/80,
+html.theme-light .bg-slate-950\/80 {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+html.theme-light .bg-slate-800,
+html.theme-light .bg-slate-800\/80,
+html.theme-light .bg-slate-800\/50 {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+/* Unselected view toggle buttons & inactive tabs */
+html.theme-light .bg-\[\#0A0D16\].text-slate-400,
+html.theme-light .bg-\[\#0a0d16\].text-slate-400,
+html.theme-light button.bg-\[\#0A0D16\],
+html.theme-light button.bg-\[\#0a0d16\] {
+  background-color: #f1f5f9 !important;
+  color: #475569 !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* Soft Neumorphic Containers & Buttons */
+html.theme-light .neu-flat,
+html.theme-light .neu-flat-light,
+html.theme-light .neu-inset,
+html.theme-light .neu-pressed,
+html.theme-light .neu-button,
+html.theme-light .neu-btn {
+  background-color: #ffffff !important;
+  box-shadow: 3px 3px 8px #d1d5db, -3px -3px 8px #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+/* =======================================
+   TABLES IN LIGHT MODE (#f0f0f3)
+   Soft, eye-friendly, crystal clear
+   ======================================= */
+html.theme-light table {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+html.theme-light thead,
+html.theme-light thead tr,
+html.theme-light table tr.bg-slate-900,
+html.theme-light table tr.bg-slate-800,
+html.theme-light table tr.bg-\[\#0a0d16\],
+html.theme-light table tr.bg-\[\#0f1422\],
+html.theme-light table tr.bg-\[\#12192c\] {
+  background-color: #e2e8f0 !important;
+  color: #0f172a !important;
+  border-bottom: 2px solid #cbd5e1 !important;
+}
+
+html.theme-light th {
+  background-color: #e2e8f0 !important;
+  color: #1e293b !important;
+  font-weight: 700 !important;
+  border-color: #cbd5e1 !important;
+}
+
+html.theme-light tbody tr {
+  background-color: #ffffff !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  color: #1e293b !important;
+}
+
+html.theme-light tbody tr:nth-child(even) {
+  background-color: #f8fafc !important;
+}
+
+html.theme-light tbody tr:hover {
+  background-color: #f1f5f9 !important;
+}
+
+html.theme-light td {
+  border-color: #e2e8f0 !important;
+  color: #1e293b !important;
+}
+
+/* Soft Readable Text Accent Colors in Light Mode */
+html.theme-light .text-white {
+  color: #0f172a !important;
+}
+
+html.theme-light .text-slate-100,
+html.theme-light .text-slate-200,
+html.theme-light .text-slate-300 {
+  color: #1e293b !important;
+}
+
+html.theme-light .text-slate-400 {
+  color: #475569 !important;
+}
+
+html.theme-light .text-slate-500 {
+  color: #64748b !important;
+}
+
+html.theme-light .text-amber-300,
+html.theme-light .text-amber-400 {
+  color: #92400e !important; /* Gentle dark amber/bronze */
+}
+
+html.theme-light .text-emerald-300,
+html.theme-light .text-emerald-400 {
+  color: #065f46 !important; /* Gentle dark emerald */
+}
+
+html.theme-light .text-sky-300,
+html.theme-light .text-sky-400 {
+  color: #0369a1 !important; /* Gentle dark sky blue */
+}
+
+html.theme-light .text-rose-300,
+html.theme-light .text-rose-400 {
+  color: #9f1239 !important; /* Gentle dark rose */
+}
+
+/* Soft Readable Status Badges in Light Mode */
+html.theme-light .bg-amber-500\/10,
+html.theme-light .bg-amber-500\/20 {
+  background-color: #fef3c7 !important;
+  color: #92400e !important;
+  border: 1px solid #fde68a !important;
+}
+
+html.theme-light .bg-emerald-500\/10,
+html.theme-light .bg-emerald-500\/20 {
+  background-color: #d1fae5 !important;
+  color: #065f46 !important;
+  border: 1px solid #a7f3d0 !important;
+}
+
+html.theme-light .bg-sky-500\/10,
+html.theme-light .bg-sky-500\/20 {
+  background-color: #e0f2fe !important;
+  color: #0369a1 !important;
+  border: 1px solid #bae6fd !important;
+}
+
+html.theme-light .bg-rose-500\/10,
+html.theme-light .bg-rose-500\/20 {
+  background-color: #ffe4e6 !important;
+  color: #9f1239 !important;
+  border: 1px solid #fecdd3 !important;
+}
+
+html.theme-light .bg-purple-500\/10,
+html.theme-light .bg-purple-500\/20 {
+  background-color: #f3e8ff !important;
+  color: #6b21a8 !important;
+  border: 1px solid #e9d5ff !important;
+}
+
+/* Form Inputs, Selects & Modals */
+html.theme-light input,
+html.theme-light select,
+html.theme-light textarea {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: inset 1px 1px 3px rgba(0,0,0,0.03) !important;
+}
+
+html.theme-light select option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+html.theme-light .border-slate-800,
+html.theme-light .border-slate-800\/80,
+html.theme-light .border-slate-700 {
+  border-color: #cbd5e1 !important;
+}
+
+html.theme-light .divide-slate-800 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #e2e8f0 !important;
+}
+
+/* Print Profile & Preview Pages */
+html.theme-light .a4-page {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05) !important;
+}
+
+html.theme-light .print-profile-container {
+  background: #f0f0f3 !important;
+  color: #0f172a !important;
+}
+
+
 
