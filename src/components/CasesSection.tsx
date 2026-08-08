@@ -158,6 +158,10 @@ export default function CasesSection() {
   // Calendar State (Current month view)
   const [currentCalendarDate, setCurrentCalendarDate] = useState<Date>(new Date());
 
+  // Agenda Filter State ('upcoming' | 'today' | 'tomorrow' | 'dayAfterTomorrow' | 'week')
+  const [agendaFilterMode, setAgendaFilterMode] = useState<'upcoming' | 'today' | 'tomorrow' | 'dayAfterTomorrow' | 'week'>('upcoming');
+  const [selectedWeekValue, setSelectedWeekValue] = useState<string>('');
+
   // Selected Case Modal
   const [selectedCaseModal, setSelectedCaseModal] = useState<DetailedCase | null>(null);
 
@@ -261,10 +265,19 @@ export default function CasesSection() {
           return {
             id: `judgment-${idx}`,
             caseNumber: caseNo,
+            classification: s[1] || '',
+            caseType: s[2] || '',
+            plaintiff: s[4] || '',
+            defendant: s[6] || '',
+            court: s[9] || '',
+            circuit: s[10] || '',
+            driveLink: s[11] || '',
             judgmentStatus: s[12] || s[2] || '',      // Col M
             instrumentNumber: s[13] || s[3] || '',    // Col N
             judgmentDate: s[15] || s[4] || '',        // Col P
             deedDocument: s[18] || s[5] || '',        // Col S
+            objectionDaysRemaining: s[19] || '',       // Col T (المتبقي على انتهاء المدة الاعتراضية بالميلادي)
+            judgmentCondition: s[20] || '',            // Col U (الحالة)
             appealStatus: s[21] || s[6] || '',        // Col V
             appealDocument: s[26] || s[7] || '',      // Col AA
             rawRow: s,
@@ -392,22 +405,44 @@ export default function CasesSection() {
     setActiveKpiFilter(null);
   };
 
-  // 2. Current Sunday calculation for Agenda (Start of current week from Sunday)
-  const currentSundayDate = useMemo(() => {
+  // 2. Dates calculations for Agenda
+  const todayDate = useMemo(() => {
     const now = new Date();
-    const dayOfWeek = now.getDay(); // 0 = Sunday
-    return new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek, 0, 0, 0, 0);
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
   }, []);
 
-  const currentSundayFormatted = useMemo(() => {
-    const day = String(currentSundayDate.getDate()).padStart(2, '0');
-    const month = String(currentSundayDate.getMonth() + 1).padStart(2, '0');
-    const year = currentSundayDate.getFullYear();
+  const todayFormatted = useMemo(() => {
+    const day = String(todayDate.getDate()).padStart(2, '0');
+    const month = String(todayDate.getMonth() + 1).padStart(2, '0');
+    const year = todayDate.getFullYear();
     return `${day}/${month}/${year}`;
-  }, [currentSundayDate]);
+  }, [todayDate]);
 
-  // Upcoming Agenda List starting from current week Sunday to ALL future upcoming events
-  const upcomingEventsList = useMemo(() => {
+  // Generate Week Options for Dropdown (e.g., "9 أغسطس إلى 15 أغسطس")
+  const weekOptions = useMemo(() => {
+    const options: { label: string; value: string; start: Date; end: Date }[] = [];
+    const now = new Date();
+    const dayOfWeek = now.getDay(); // 0 = Sunday
+    const currentSunday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek, 0, 0, 0, 0);
+
+    for (let i = -2; i <= 10; i++) {
+      const wStart = new Date(currentSunday.getFullYear(), currentSunday.getMonth(), currentSunday.getDate() + (i * 7), 0, 0, 0, 0);
+      const wEnd = new Date(wStart.getFullYear(), wStart.getMonth(), wStart.getDate() + 6, 23, 59, 59, 999);
+
+      const startFormatted = wStart.toLocaleDateString('ar-EG', { day: 'numeric', month: 'long' });
+      const endFormatted = wEnd.toLocaleDateString('ar-EG', { day: 'numeric', month: 'long' });
+      const isCurrent = i === 0;
+
+      const label = `${startFormatted} إلى ${endFormatted}${isCurrent ? ' (الأسبوع الحالي)' : ''}`;
+      const value = `${wStart.getTime()}_${wEnd.getTime()}`;
+
+      options.push({ label, value, start: wStart, end: wEnd });
+    }
+    return options;
+  }, []);
+
+  // All Agenda Events
+  const allAgendaEvents = useMemo(() => {
     const events: {
       type: 'hearing' | 'memo';
       dateStr: string;
@@ -420,7 +455,6 @@ export default function CasesSection() {
       caseRef?: DetailedCase;
     }[] = [];
 
-    // Helper to find case ref
     const findCase = (cNo: string, raw: string[]) => {
       if (!cNo && (!raw || raw.length === 0)) return undefined;
       const cleanNo = cNo.trim().toLowerCase();
@@ -464,22 +498,83 @@ export default function CasesSection() {
       });
     });
 
-    // Filter events starting from current week's Sunday onwards
-    const filteredEvents = events.filter(ev => {
-      if (!ev.dateObj) return true; // keep if date string is unstructured
-      return ev.dateObj >= currentSundayDate;
-    });
-
-    // Sort chronologically ascending
-    filteredEvents.sort((a, b) => {
+    events.sort((a, b) => {
       if (a.dateObj && b.dateObj) {
         return a.dateObj.getTime() - b.dateObj.getTime();
       }
       return 0;
     });
 
-    return filteredEvents;
-  }, [hearings, memos, cases, currentSundayDate]);
+    return events;
+  }, [hearings, memos, cases]);
+
+  // Filtered Agenda Events (Auto Daily Update: today's events first, past events hidden by default)
+  const upcomingEventsList = useMemo(() => {
+    const todayTime = todayDate.getTime();
+    const tomorrowTime = todayTime + 86400000;
+    const dayAfterTomorrowTime = todayTime + (2 * 86400000);
+
+    return allAgendaEvents.filter(ev => {
+      if (!ev.dateObj) {
+        return agendaFilterMode === 'upcoming';
+      }
+
+      const evTime = new Date(ev.dateObj.getFullYear(), ev.dateObj.getMonth(), ev.dateObj.getDate(), 0, 0, 0, 0).getTime();
+
+      if (agendaFilterMode === 'upcoming') {
+        // Daily auto-update: Show events starting from today onwards (hides past days)
+        return evTime >= todayTime;
+      }
+
+      if (agendaFilterMode === 'today') {
+        return evTime === todayTime;
+      }
+
+      if (agendaFilterMode === 'tomorrow') {
+        return evTime === tomorrowTime;
+      }
+
+      if (agendaFilterMode === 'dayAfterTomorrow') {
+        return evTime === dayAfterTomorrowTime;
+      }
+
+      if (agendaFilterMode === 'week') {
+        if (!selectedWeekValue) return evTime >= todayTime;
+        const [sStr, eStr] = selectedWeekValue.split('_');
+        const sTime = parseInt(sStr, 10);
+        const eTime = parseInt(eStr, 10);
+        return ev.dateObj.getTime() >= sTime && ev.dateObj.getTime() <= eTime;
+      }
+
+      return true;
+    });
+  }, [allAgendaEvents, agendaFilterMode, selectedWeekValue, todayDate]);
+
+  // Counts for Agenda Filter Tabs
+  const agendaCounts = useMemo(() => {
+    const todayTime = todayDate.getTime();
+    const tomorrowTime = todayTime + 86400000;
+    const dayAfterTomorrowTime = todayTime + (2 * 86400000);
+
+    let upcoming = 0;
+    let today = 0;
+    let tomorrow = 0;
+    let dayAfterTomorrow = 0;
+
+    allAgendaEvents.forEach(ev => {
+      if (!ev.dateObj) {
+        upcoming++;
+        return;
+      }
+      const evTime = new Date(ev.dateObj.getFullYear(), ev.dateObj.getMonth(), ev.dateObj.getDate(), 0, 0, 0, 0).getTime();
+      if (evTime >= todayTime) upcoming++;
+      if (evTime === todayTime) today++;
+      if (evTime === tomorrowTime) tomorrow++;
+      if (evTime === dayAfterTomorrowTime) dayAfterTomorrow++;
+    });
+
+    return { upcoming, today, tomorrow, dayAfterTomorrow };
+  }, [allAgendaEvents, todayDate]);
 
   // 3. Calendar Grid Calculations
   const calendarDays = useMemo(() => {
@@ -1091,16 +1186,16 @@ export default function CasesSection() {
             </div>
           )}
 
-          {/* Section 2: أجندة القضايا القادمة */}
+          {/* Section 2: أجندة القضايا والجلسات */}
           {(sectionViewMode === 'all' || sectionViewMode === 'agenda') && (
             <div className={`${sectionViewMode === 'all' ? 'lg:col-span-5' : 'lg:col-span-12'} bg-[#101626] border border-slate-800/80 rounded-2xl shadow-xl overflow-hidden flex flex-col`}>
               <div className="p-4 border-b border-slate-800 flex items-center justify-between gap-2 bg-[#0A0D16]/60">
                 <div className="flex items-center gap-2">
                   <Clock className="w-4 h-4 text-amber-400" />
                   <div>
-                    <h3 className="text-sm font-bold text-white">أجندة القضايا والجلسات القادمة</h3>
+                    <h3 className="text-sm font-bold text-white">أجندة القضايا والجلسات</h3>
                     <p className="text-[11px] text-brand-primary font-bold mt-0.5">
-                      من الأحد {currentSundayFormatted} إلى جميع الجلسات القادمة
+                      تحديث يومي تلقائي ابتداءً من اليوم {todayFormatted}
                     </p>
                   </div>
                 </div>
@@ -1119,10 +1214,104 @@ export default function CasesSection() {
                 </div>
               </div>
 
+              {/* Filter Tabs & Week Dropdown Bar */}
+              <div className="p-3 bg-[#0A0D16] border-b border-slate-800 space-y-2 text-xs">
+                {/* Tabs */}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <button
+                    onClick={() => setAgendaFilterMode('upcoming')}
+                    className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition-all flex items-center gap-1 ${
+                      agendaFilterMode === 'upcoming'
+                        ? 'bg-brand-primary text-slate-950 font-black shadow-md'
+                        : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800'
+                    }`}
+                  >
+                    <span>اليوم والقادمة</span>
+                    <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-900/40 text-current">
+                      {agendaCounts.upcoming}
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => setAgendaFilterMode('today')}
+                    className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition-all flex items-center gap-1 ${
+                      agendaFilterMode === 'today'
+                        ? 'bg-emerald-500 text-slate-950 font-black shadow-md'
+                        : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800'
+                    }`}
+                  >
+                    <span>اليوم</span>
+                    <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-900/40 text-current">
+                      {agendaCounts.today}
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => setAgendaFilterMode('tomorrow')}
+                    className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition-all flex items-center gap-1 ${
+                      agendaFilterMode === 'tomorrow'
+                        ? 'bg-amber-500 text-slate-950 font-black shadow-md'
+                        : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800'
+                    }`}
+                  >
+                    <span>غداً</span>
+                    <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-900/40 text-current">
+                      {agendaCounts.tomorrow}
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => setAgendaFilterMode('dayAfterTomorrow')}
+                    className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition-all flex items-center gap-1 ${
+                      agendaFilterMode === 'dayAfterTomorrow'
+                        ? 'bg-sky-500 text-slate-950 font-black shadow-md'
+                        : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800'
+                    }`}
+                  >
+                    <span>بعد غد</span>
+                    <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-900/40 text-current">
+                      {agendaCounts.dayAfterTomorrow}
+                    </span>
+                  </button>
+                </div>
+
+                {/* Week Selector Dropdown */}
+                <div className="flex items-center gap-1.5 pt-1 border-t border-slate-800/60">
+                  <span className="text-[11px] text-slate-400 font-bold whitespace-nowrap">تصفية حسب الأسبوع:</span>
+                  <select
+                    value={agendaFilterMode === 'week' ? selectedWeekValue : ''}
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        setAgendaFilterMode('week');
+                        setSelectedWeekValue(e.target.value);
+                      } else {
+                        setAgendaFilterMode('upcoming');
+                      }
+                    }}
+                    className={`w-full bg-slate-900 border text-[11px] rounded-lg px-2.5 py-1 font-bold outline-none transition-colors ${
+                      agendaFilterMode === 'week'
+                        ? 'border-brand-primary text-brand-primary bg-brand-primary/10'
+                        : 'border-slate-800 text-slate-300 focus:border-brand-primary'
+                    }`}
+                  >
+                    <option value="">-- اختر أسبوعاً محدداً --</option>
+                    {weekOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
               <div className="p-4 space-y-3 overflow-y-auto max-h-[520px] custom-scrollbar">
                 {upcomingEventsList.length === 0 ? (
                   <div className="p-8 text-center text-slate-500 text-xs">
-                    لا توجد جلسات أو مذكرات قادمة مسجلة ابتداءً من الأحد {currentSundayFormatted}.
+                    {agendaFilterMode === 'today' && 'لا توجد جلسات أو مذكرات مسجلة اليوم.'}
+                    {agendaFilterMode === 'tomorrow' && 'لا توجد جلسات أو مذكرات مسجلة للغد.'}
+                    {agendaFilterMode === 'dayAfterTomorrow' && 'لا توجد جلسات أو مذكرات مسجلة لليوم بعد الغد.'}
+                    {agendaFilterMode === 'week' && 'لا توجد جلسات أو مذكرات مسجلة للأسبوع المحدد.'}
+                    {agendaFilterMode === 'upcoming' && `لا توجد جلسات أو مذكرات قادمة مسجلة ابتداءً من اليوم ${todayFormatted}.`}
                   </div>
                 ) : (
                   upcomingEventsList.map((ev, i) => (
@@ -1644,6 +1833,7 @@ export default function CasesSection() {
                           <th className="p-3">حالة الحكم (M)</th>
                           <th className="p-3">رقم الصك (N)</th>
                           <th className="p-3">تاريخ الحكم بالميلادي (P)</th>
+                          <th className="p-3 text-center text-amber-300">المتبقي على انتهاء المدة الاعتراضية بالميلادي (T)</th>
                           <th className="p-3 text-center">صك الحكم (S)</th>
                           <th className="p-3">حالة الإستئناف (V)</th>
                           <th className="p-3 text-center">صك الاستئناف (AA)</th>
@@ -1653,11 +1843,26 @@ export default function CasesSection() {
                         {caseJudgments.map((j, jIdx) => {
                           const hasDeed = isValidLink(j.deedDocument);
                           const hasAppeal = isValidLink(j.appealDocument);
+                          const daysNum = parseInt(j.objectionDaysRemaining || '0', 10);
+
                           return (
                             <tr key={`cj-${jIdx}`} className="hover:bg-slate-800/40">
                               <td className="p-3 font-bold text-emerald-400">{j.judgmentStatus || '-'}</td>
                               <td className="p-3 font-bold text-white">{j.instrumentNumber || '-'}</td>
-                              <td className="p-3">{j.judgmentDate || '-'}</td>
+                              <td className="p-3 font-mono">{j.judgmentDate || '-'}</td>
+                              <td className="p-3 text-center font-mono font-bold">
+                                {j.objectionDaysRemaining ? (
+                                  <span className={`inline-block px-2.5 py-1 rounded-lg text-xs ${
+                                    !isNaN(daysNum) && daysNum > 0
+                                      ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                                      : 'bg-rose-500/15 text-rose-300 border border-rose-500/30'
+                                  }`}>
+                                    {j.objectionDaysRemaining} يوم
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-600">-</span>
+                                )}
+                              </td>
                               <td className="p-3 text-center">
                                 {hasDeed ? (
                                   <a

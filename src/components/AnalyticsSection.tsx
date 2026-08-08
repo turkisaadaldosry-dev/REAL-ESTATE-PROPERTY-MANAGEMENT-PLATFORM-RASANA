@@ -24,10 +24,11 @@ import {
   FolderOpen,
   FileCheck
 } from 'lucide-react';
-import { DetailedCase, HearingRecord } from '../types';
+import { DetailedCase, HearingRecord, JudgmentRecord } from '../types';
 
 const CASES_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT8qWdU0eFMs5IMYbDwamiGZCpDejrHdczl1d9D8Ivdo91ulEzeXC6uyrJmPw3-z9j4CtUnE5tUPdMn/pub?gid=1227781018&single=true&output=csv';
 const HEARINGS_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT8qWdU0eFMs5IMYbDwamiGZCpDejrHdczl1d9D8Ivdo91ulEzeXC6uyrJmPw3-z9j4CtUnE5tUPdMn/pub?gid=488217084&single=true&output=csv';
+const JUDGMENTS_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT8qWdU0eFMs5IMYbDwamiGZCpDejrHdczl1d9D8Ivdo91ulEzeXC6uyrJmPw3-z9j4CtUnE5tUPdMn/pub?gid=2104745904&single=true&output=csv';
 
 function parseDateString(dStr: string): Date | null {
   if (!dStr) return null;
@@ -110,6 +111,10 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
   const [showUnassignedCases, setShowUnassignedCases] = useState<boolean>(false);
   const [showUnclearFinishedCases, setShowUnclearFinishedCases] = useState<boolean>(false);
 
+  // Judgments State
+  const [judgments, setJudgments] = useState<JudgmentRecord[]>([]);
+  const [judgmentSearchQuery, setJudgmentSearchQuery] = useState<string>('');
+
   const [lastUpdatedTime, setLastUpdatedTime] = useState<string>('');
 
   // Sync initial casesRaw if available and state is empty
@@ -120,15 +125,16 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
     }
   }, [casesRaw]);
 
-  // Fetch Cases & Hearings directly from Google Sheet CSVs live with cache-busting
+  // Fetch Cases, Hearings & Judgments directly from Google Sheet CSVs live with cache-busting
   const fetchData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const [casesRowsData, hearingsRowsData] = await Promise.all([
+      const [casesRowsData, hearingsRowsData, judgmentsRowsData] = await Promise.all([
         parseCsvSheet(CASES_SHEET_URL),
-        parseCsvSheet(HEARINGS_SHEET_URL)
+        parseCsvSheet(HEARINGS_SHEET_URL),
+        parseCsvSheet(JUDGMENTS_SHEET_URL)
       ]);
 
       if (casesRowsData && casesRowsData.length > 1) {
@@ -185,6 +191,36 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
             };
           });
         setHearings(parsedHearings);
+      }
+
+      if (judgmentsRowsData && judgmentsRowsData.length > 1) {
+        const rows = judgmentsRowsData.slice(1);
+        const parsedJudgments: JudgmentRecord[] = rows
+          .filter(r => r.some(c => c && c.trim()))
+          .map((r, idx) => {
+            const s = r.map(c => (c ? c.trim() : ''));
+            return {
+              id: `judgment-${idx}`,
+              caseNumber: s[0] || '',          // Col 0 [A]
+              classification: s[1] || '',      // Col 1 [B]
+              caseType: s[2] || '',            // Col 2 [C]
+              plaintiff: s[4] || '',           // Col 4 [E]
+              defendant: s[6] || '',           // Col 6 [G]
+              court: s[9] || '',               // Col 9 [J]
+              circuit: s[10] || '',            // Col 10 [K]
+              driveLink: s[11] || '',          // Col 11 [L]
+              judgmentStatus: s[12] || '',     // Col 12 [M]
+              instrumentNumber: s[13] || '',   // Col 13 [N]
+              judgmentDate: s[15] || '',       // Col 15 [P]
+              deedDocument: s[18] || '',       // Col 18 [S]
+              objectionDaysRemaining: s[19] || '', // Col 19 [T] - المتبقي على انتهاء المدة الاعتراضية بالميلادي
+              judgmentCondition: s[20] || '',      // Col 20 [U] - الحالة (محكومة بحكم غير نهائي)
+              appealStatus: s[21] || '',       // Col 21 [V]
+              appealDocument: s[26] || '',     // Col 26 [AA]
+              rawRow: s,
+            };
+          });
+        setJudgments(parsedJudgments);
       }
 
       const now = new Date();
@@ -252,6 +288,38 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
     });
     return Array.from(setR).sort();
   }, [cases]);
+
+  // Non-Final Judgments list (قضايا محكومة بحكم غير نهائي - شيت الأحكام)
+  const nonFinalJudgments = useMemo(() => {
+    return judgments.filter(j => {
+      const cond = ((j.judgmentCondition || '') + ' ' + (j.judgmentStatus || '')).toLowerCase();
+      const isNonFinal = cond.includes('غير نهائي') || cond.includes('غير نهائيه');
+      if (!isNonFinal) return false;
+
+      // Filter Column T (المتبقي على انتهاء المدة الاعتراضية): Only show if greater than 0 (> 0)
+      const days = parseInt(j.objectionDaysRemaining || '0', 10);
+      if (isNaN(days) || days <= 0) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [judgments]);
+
+  const filteredNonFinalJudgments = useMemo(() => {
+    return nonFinalJudgments.filter(j => {
+      if (!judgmentSearchQuery.trim()) return true;
+      const q = judgmentSearchQuery.trim().toLowerCase();
+      return (
+        j.caseNumber.toLowerCase().includes(q) ||
+        (j.plaintiff && j.plaintiff.toLowerCase().includes(q)) ||
+        (j.defendant && j.defendant.toLowerCase().includes(q)) ||
+        (j.court && j.court.toLowerCase().includes(q)) ||
+        (j.instrumentNumber && j.instrumentNumber.toLowerCase().includes(q)) ||
+        (j.classification && j.classification.toLowerCase().includes(q))
+      );
+    });
+  }, [nonFinalJudgments, judgmentSearchQuery]);
 
   // Overall Metrics
   const metrics = useMemo(() => {
@@ -1141,6 +1209,136 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
               </div>
             </div>
 
+          </div>
+
+          {/* Section 6: Non-Final Judgments Table (جدول الأحكام للقضايا المحكومة بحكم غير نهائي) */}
+          <div className="space-y-4 pt-6 border-t border-slate-800">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <FileCheck className="w-5 h-5 text-amber-400" />
+                <h3 className="text-lg font-black text-white">
+                  جدول الأحكام للقضايا المحكومة بحكم غير نهائي والمتبقي على انتهاء المدة الاعتراضية
+                </h3>
+                <span className="text-xs bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full font-mono font-bold">
+                  {filteredNonFinalJudgments.length} قضية
+                </span>
+              </div>
+            </div>
+
+            <div className="p-5 bg-[#0F1422] border border-slate-800 rounded-2xl space-y-4">
+              {/* Search Bar */}
+              <div className="max-w-md">
+                <label className="block text-slate-400 font-bold mb-1 text-xs">بحث في جدول الأحكام (رقم القضية، المدعي، المحكمة...)</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={judgmentSearchQuery}
+                    onChange={(e) => setJudgmentSearchQuery(e.target.value)}
+                    placeholder="ابحث برقم القضية، اسم المدعي، أو رقم الصك..."
+                    className="w-full bg-[#0A0D16] border border-slate-800 rounded-xl p-2.5 pr-9 text-white font-medium text-xs outline-none focus:border-brand-primary placeholder-slate-600"
+                  />
+                  <Search className="w-4 h-4 text-slate-500 absolute top-3 right-3" />
+                </div>
+              </div>
+
+              {/* Table */}
+              <div className="overflow-x-auto rounded-xl border border-slate-800">
+                <table className="w-full text-right text-xs">
+                  <thead>
+                    <tr className="bg-slate-900 text-slate-400 font-bold border-b border-slate-800">
+                      <th className="p-3">رقم القضية</th>
+                      <th className="p-3">التصنيف / نوع القضية</th>
+                      <th className="p-3">المدعي والمدعى عليه</th>
+                      <th className="p-3">المحكمة والدائرة</th>
+                      <th className="p-3 text-center">تاريخ الحكم (P)</th>
+                      <th className="p-3 text-center">رقم الصك والوثيقة (N/S)</th>
+                      <th className="p-3 text-center">الحالة (U)</th>
+                      <th className="p-3 text-center text-amber-300">
+                        المتبقي على انتهاء المدة الاعتراضية بالميلادي (T)
+                      </th>
+                      <th className="p-3 text-center">عرض</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800 text-slate-200">
+                    {filteredNonFinalJudgments.length === 0 ? (
+                      <tr>
+                        <td colSpan={9} className="p-8 text-center text-slate-500">
+                          لا توجد قضايا محكومة بحكم غير نهائي مطابقة للبحث.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredNonFinalJudgments.map((j, idx) => {
+                        const matchingCase = cases.find(c => c.caseNumber && (c.caseNumber.trim() === j.caseNumber.trim() || j.caseNumber.includes(c.caseNumber)));
+                        const daysNum = parseInt(j.objectionDaysRemaining || '0', 10);
+                        const hasDeed = isValidLink(j.deedDocument);
+
+                        return (
+                          <tr key={`nfj-${idx}`} className="hover:bg-slate-800/40 transition-colors">
+                            <td className="p-3 font-bold text-white font-mono">{j.caseNumber || '-'}</td>
+                            <td className="p-3">
+                              <span className="block font-bold text-slate-300">{j.classification || '-'}</span>
+                              <span className="text-[11px] text-slate-400">{j.caseType || ''}</span>
+                            </td>
+                            <td className="p-3">
+                              <span className="block text-slate-200 font-medium">المدعي: {j.plaintiff || '-'}</span>
+                              <span className="block text-slate-400 text-[11px]">المدعى عليه: {j.defendant || '-'}</span>
+                            </td>
+                            <td className="p-3">
+                              <span className="block text-slate-300 font-medium">{j.court || '-'}</span>
+                              <span className="block text-slate-400 text-[11px]">{j.circuit || '-'}</span>
+                            </td>
+                            <td className="p-3 text-center font-mono">{j.judgmentDate || '-'}</td>
+                            <td className="p-3 text-center">
+                              <span className="block font-mono text-white font-bold">{j.instrumentNumber || '-'}</span>
+                              {hasDeed && (
+                                <a
+                                  href={j.deedDocument}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-[11px] text-sky-400 hover:underline font-bold mt-0.5"
+                                >
+                                  <FileText className="w-3 h-3" /> مشاهدة الصك
+                                </a>
+                              )}
+                            </td>
+                            <td className="p-3 text-center">
+                              <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                                {j.judgmentCondition || j.judgmentStatus || 'محكومة بحكم غير نهائي'}
+                              </span>
+                            </td>
+                            <td className="p-3 text-center font-mono">
+                              {j.objectionDaysRemaining ? (
+                                <span className={`inline-block px-3 py-1 rounded-xl font-bold text-xs ${
+                                  !isNaN(daysNum) && daysNum >= 0
+                                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
+                                    : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                                }`}>
+                                  {j.objectionDaysRemaining} يوم
+                                </span>
+                              ) : (
+                                <span className="text-slate-500">-</span>
+                              )}
+                            </td>
+                            <td className="p-3 text-center">
+                              {matchingCase ? (
+                                <button
+                                  onClick={() => setSelectedCaseModal(matchingCase)}
+                                  className="px-2.5 py-1 rounded-lg bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-primary font-bold text-xs border border-brand-primary/30 transition-colors"
+                                >
+                                  التفاصيل
+                                </button>
+                              ) : (
+                                <span className="text-slate-600 text-[11px]">-</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </>
       )}

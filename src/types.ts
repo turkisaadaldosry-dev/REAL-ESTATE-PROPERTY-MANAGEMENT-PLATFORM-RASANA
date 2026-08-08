@@ -168,8 +168,17 @@ export interface JudgmentRecord {
   instrumentNumber: string; // N: رقم الصك
   judgmentDate: string;     // P: تاريخ الحكم بالميلادي
   deedDocument: string;     // S: صك الحكم
+  objectionDaysRemaining?: string; // T: المتبقي على انتهاء المدة الاعتراضية بالميلادي
+  judgmentCondition?: string;     // U: الحالة (محكومة بحكم غير نهائي / نهائي)
   appealStatus: string;     // V: حالة الإستئناف
   appealDocument: string;   // AA: صك الاستئناف
+  classification?: string;  // B: تصنيف القضية
+  caseType?: string;        // C: نوع القضية
+  plaintiff?: string;       // E: المدعي
+  defendant?: string;       // G: المدعى عليه
+  court?: string;           // J: المحكمة
+  circuit?: string;         // K: الدائرة
+  driveLink?: string;       // L: ملف القضية
   rawRow: string[];
 }
 
