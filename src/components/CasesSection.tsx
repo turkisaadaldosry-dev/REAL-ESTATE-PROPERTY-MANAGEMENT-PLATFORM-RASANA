@@ -92,6 +92,48 @@ function getArabicDayName(dateObj: Date): string {
   }
 }
 
+// Helper to determine specific badge label and styling for agenda items
+function getEventBadgeInfo(ev: {
+  type: 'hearing' | 'memo';
+  caseRef?: DetailedCase | null;
+  taskOrClaim?: string;
+}) {
+  if (ev.type === 'memo') {
+    return {
+      text: '📝 مذكرة قانونية',
+      className: 'bg-sky-500/15 text-sky-300 border-sky-500/30'
+    };
+  }
+
+  const courtStr = (ev.caseRef?.court || '').toLowerCase();
+  const rawStr = (ev.caseRef?.rawRow ? ev.caseRef.rawRow.join(' ') : '').toLowerCase();
+  const combined = (courtStr + ' ' + rawStr + ' ' + (ev.taskOrClaim || '')).toLowerCase();
+
+  if (combined.includes('تراضي') || combined.includes('صلح')) {
+    return {
+      text: '🤝 جلسة صلح (تراضي)',
+      className: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+    };
+  }
+  if (combined.includes('تسوية ودية') || combined.includes('تسوية عمالية') || combined.includes('ودية')) {
+    return {
+      text: '💼 جلسة تسوية عمالية',
+      className: 'bg-purple-500/15 text-purple-300 border-purple-500/30'
+    };
+  }
+  if (combined.includes('الإدارية') || combined.includes('الادارية') || combined.includes('مظالم') || combined.includes('ديوان')) {
+    return {
+      text: '🏛️ جلسة ديوان المظالم',
+      className: 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30'
+    };
+  }
+
+  return {
+    text: '⚖️ جلسة قضائية',
+    className: 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+  };
+}
+
 // Helper to parse date strings from Google Sheets (handles YYYY-MM-DD, DD/MM/YYYY, D/M/YYYY)
 function parseDateString(dStr: string): Date | null {
   if (!dStr) return null;
@@ -559,6 +601,44 @@ export default function CasesSection() {
       return true;
     });
   }, [allAgendaEvents, agendaFilterMode, selectedWeekValue, todayDate]);
+
+  // Detailed breakdown counts for Agenda (جلسات قضائية، مذكرات قانونية، منصة تراضي، تسوية ودية، ديوان المظالم)
+  const agendaStats = useMemo(() => {
+    let hearingsCount = 0;
+    let memosCount = 0;
+    let taradhiCount = 0;
+    let amicableSettlementCount = 0;
+    let administrativeCourtCount = 0;
+
+    upcomingEventsList.forEach(ev => {
+      if (ev.type === 'hearing') {
+        hearingsCount++;
+        const courtStr = (ev.caseRef?.court || '').toLowerCase();
+        const rawStr = (ev.caseRef?.rawRow ? ev.caseRef.rawRow.join(' ') : '').toLowerCase();
+        const combined = (courtStr + ' ' + rawStr + ' ' + (ev.taskOrClaim || '')).toLowerCase();
+
+        if (combined.includes('تراضي') || combined.includes('صلح')) {
+          taradhiCount++;
+        }
+        if (combined.includes('تسوية ودية') || combined.includes('تسوية عمالية') || combined.includes('ودية')) {
+          amicableSettlementCount++;
+        }
+        if (combined.includes('الإدارية') || combined.includes('الادارية') || combined.includes('مظالم') || combined.includes('ديوان')) {
+          administrativeCourtCount++;
+        }
+      } else if (ev.type === 'memo') {
+        memosCount++;
+      }
+    });
+
+    return {
+      hearingsCount,
+      memosCount,
+      taradhiCount,
+      amicableSettlementCount,
+      administrativeCourtCount
+    };
+  }, [upcomingEventsList]);
 
   // Counts for Agenda Filter Tabs
   const agendaCounts = useMemo(() => {
@@ -1312,6 +1392,44 @@ export default function CasesSection() {
                     ))}
                   </select>
                 </div>
+
+                {/* Agenda Breakdown Statistics (جلسات قضائية، مذكرات، منصة تراضي، تسوية ودية، ديوان المظالم) */}
+                <div className="pt-2 border-t border-slate-800/60 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1.5 text-[11px]">
+                  <div className="p-2 bg-slate-900 border border-slate-800 rounded-xl flex items-center justify-between">
+                    <span className="text-slate-400 font-bold">جلسات قضائية</span>
+                    <span className="px-2 py-0.5 font-mono font-black text-amber-400 bg-amber-500/15 rounded-lg border border-amber-500/30 text-xs">
+                      {agendaStats.hearingsCount}
+                    </span>
+                  </div>
+
+                  <div className="p-2 bg-slate-900 border border-slate-800 rounded-xl flex items-center justify-between">
+                    <span className="text-slate-400 font-bold">مذكرات قانونية</span>
+                    <span className="px-2 py-0.5 font-mono font-black text-sky-400 bg-sky-500/15 rounded-lg border border-sky-500/30 text-xs">
+                      {agendaStats.memosCount}
+                    </span>
+                  </div>
+
+                  <div className="p-2 bg-slate-900 border border-slate-800 rounded-xl flex items-center justify-between">
+                    <span className="text-slate-400 font-bold">جلسات صلح (تراضي)</span>
+                    <span className="px-2 py-0.5 font-mono font-black text-emerald-400 bg-emerald-500/15 rounded-lg border border-emerald-500/30 text-xs">
+                      {agendaStats.taradhiCount}
+                    </span>
+                  </div>
+
+                  <div className="p-2 bg-slate-900 border border-slate-800 rounded-xl flex items-center justify-between">
+                    <span className="text-slate-400 font-bold">تسوية عمالية (ودية)</span>
+                    <span className="px-2 py-0.5 font-mono font-black text-purple-400 bg-purple-500/15 rounded-lg border border-purple-500/30 text-xs">
+                      {agendaStats.amicableSettlementCount}
+                    </span>
+                  </div>
+
+                  <div className="p-2 bg-slate-900 border border-slate-800 rounded-xl flex items-center justify-between col-span-2 sm:col-span-1">
+                    <span className="text-slate-400 font-bold">ديوان المظالم (إدارية)</span>
+                    <span className="px-2 py-0.5 font-mono font-black text-indigo-400 bg-indigo-500/15 rounded-lg border border-indigo-500/30 text-xs">
+                      {agendaStats.administrativeCourtCount}
+                    </span>
+                  </div>
+                </div>
               </div>
 
               <div className="p-4 space-y-3 overflow-y-auto max-h-[520px] custom-scrollbar">
@@ -1346,13 +1464,14 @@ export default function CasesSection() {
                           )}
                         </span>
 
-                        <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] border ${
-                          ev.type === 'hearing'
-                            ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
-                            : 'bg-sky-500/15 text-sky-300 border-sky-500/30'
-                        }`}>
-                          {ev.type === 'hearing' ? '⚖️ جلسة قضائية' : '📝 مذكرة قانونية'}
-                        </span>
+                        {(() => {
+                          const badgeInfo = getEventBadgeInfo(ev);
+                          return (
+                            <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] border ${badgeInfo.className}`}>
+                              {badgeInfo.text}
+                            </span>
+                          );
+                        })()}
                       </div>
 
                       <div className="flex items-center justify-between gap-2 pt-1 text-xs">
