@@ -69,14 +69,24 @@ function formatTimeHour(timeStr: string): string {
   return clean;
 }
 
-// Helper to convert Gregorian date string to Hijri approximation or Arabic date format
+// Helper to convert Gregorian date string to Hijri date format
 function getHijriDateString(dateObj: Date): string {
   try {
     const formatter = new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura', {
       day: 'numeric',
-      month: 'long'
+      month: 'long',
+      year: 'numeric'
     });
     return formatter.format(dateObj);
+  } catch {
+    return '';
+  }
+}
+
+// Helper to get Arabic day name (الأحد, الاثنين, الخ)
+function getArabicDayName(dateObj: Date): string {
+  try {
+    return dateObj.toLocaleDateString('ar-EG', { weekday: 'long' });
   } catch {
     return '';
   }
@@ -1321,9 +1331,19 @@ export default function CasesSection() {
                       className="p-3.5 bg-[#0A0D16] hover:bg-slate-800/60 border border-slate-800 rounded-xl transition-all cursor-pointer group space-y-2 relative"
                     >
                       <div className="flex items-center justify-between text-xs">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 font-bold">
-                          <CalendarIcon className="w-3.5 h-3.5 text-brand-primary" />
-                          {ev.dateStr || 'تاريخ قريب'}
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 font-bold flex-wrap">
+                          <CalendarIcon className="w-3.5 h-3.5 text-brand-primary shrink-0" />
+                          {ev.dateObj ? (
+                            <span className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-amber-400 font-black">{getArabicDayName(ev.dateObj)}</span>
+                              <span className="text-slate-500">•</span>
+                              <span className="font-mono">{ev.dateStr}</span>
+                              <span className="text-slate-500">•</span>
+                              <span className="text-emerald-400 font-bold">{getHijriDateString(ev.dateObj)}</span>
+                            </span>
+                          ) : (
+                            <span>{ev.dateStr || 'تاريخ قريب'}</span>
+                          )}
                         </span>
 
                         <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] border ${

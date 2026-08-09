@@ -249,33 +249,20 @@ html.theme-light .bg-gradient-to-r.to-amber-500 {
 
 /* Base Dark Containers & Custom Arbitrary Hex Backgrounds converted to Light Cards */
 html.theme-light [class*="bg-\[\#"],
-html.theme-light .bg-\[\#0A0D16\],
-html.theme-light .bg-\[\#0a0d16\],
-html.theme-light .bg-\[\#101626\],
-html.theme-light .bg-\[\#0D1220\],
-html.theme-light .bg-\[\#0d1220\],
-html.theme-light .bg-\[\#0F1422\],
-html.theme-light .bg-\[\#0f1422\],
-html.theme-light .bg-\[\#12192C\],
-html.theme-light .bg-\[\#12192c\],
-html.theme-light .bg-\[\#141a2e\],
-html.theme-light .bg-\[\#0E131F\],
-html.theme-light .bg-\[\#0b0e17\],
-html.theme-light .bg-\[\#0B0E17\],
-html.theme-light .bg-\[\#121926\],
-html.theme-light .bg-\[\#1C2538\],
-html.theme-light .bg-slate-950,
-html.theme-light .bg-slate-900,
-html.theme-light .bg-slate-900\/80,
-html.theme-light .bg-slate-950\/80 {
+html.theme-light [class*="bg-slate-950"] {
   background-color: #ffffff !important;
   border-color: #e2e8f0 !important;
   color: #0f172a !important;
 }
 
-html.theme-light .bg-slate-800,
-html.theme-light .bg-slate-800\/80,
-html.theme-light .bg-slate-800\/50 {
+/* Inner sub-boxes, detail panels, and opacity variants in light mode */
+html.theme-light [class*="bg-slate-900"] {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+html.theme-light [class*="bg-slate-800"] {
   background-color: #f1f5f9 !important;
   border-color: #cbd5e1 !important;
   color: #0f172a !important;
