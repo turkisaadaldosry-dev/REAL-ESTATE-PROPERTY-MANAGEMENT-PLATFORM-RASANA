@@ -501,6 +501,7 @@ export default function CasesSection() {
       timeStr: string;
       caseNumber: string;
       plaintiff: string;
+      defendant: string;
       taskOrClaim: string;
       caseClaims?: string;
       dateObj: Date | null;
@@ -527,6 +528,7 @@ export default function CasesSection() {
         timeStr: formatTimeHour(h.hearingTime),
         caseNumber: h.caseNumber || (cRef ? cRef.caseNumber : 'جلسة قضائية'),
         plaintiff: cRef ? cRef.plaintiff : '-',
+        defendant: cRef ? cRef.defendant : '-',
         taskOrClaim: h.status || 'جلسة بالمحكمة',
         caseClaims: cRef ? cRef.claims : '',
         dateObj,
@@ -543,6 +545,7 @@ export default function CasesSection() {
         timeStr: 'موعد تسليم',
         caseNumber: m.caseNumber || (cRef ? cRef.caseNumber : 'مذكرة قضائية'),
         plaintiff: cRef ? cRef.plaintiff : '-',
+        defendant: cRef ? cRef.defendant : '-',
         taskOrClaim: m.task || 'مذكرة قانونية',
         caseClaims: cRef ? cRef.claims : '',
         dateObj,
@@ -1474,16 +1477,20 @@ export default function CasesSection() {
                         })()}
                       </div>
 
-                      <div className="flex items-center justify-between gap-2 pt-1 text-xs">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 text-xs">
                         <div>
                           <span className="text-slate-400 text-[11px] block">رقم القضية / الوقت:</span>
                           <span className="font-bold text-white group-hover:text-brand-primary transition-colors">
                             قضية رقم: {ev.caseNumber} ({ev.timeStr})
                           </span>
                         </div>
-                        <div className="text-left">
+                        <div>
                           <span className="text-slate-400 text-[11px] block">المدعي:</span>
-                          <span className="font-bold text-slate-300">{ev.plaintiff}</span>
+                          <span className="font-bold text-slate-300">{ev.plaintiff || '-'}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 text-[11px] block">المدعى عليه:</span>
+                          <span className="font-bold text-slate-300">{ev.defendant || (ev.caseRef?.defendant) || '-'}</span>
                         </div>
                       </div>
 
