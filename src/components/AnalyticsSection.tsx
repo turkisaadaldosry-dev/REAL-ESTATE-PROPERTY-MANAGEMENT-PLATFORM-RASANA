@@ -22,7 +22,9 @@ import {
   ExternalLink,
   X,
   FolderOpen,
-  FileCheck
+  FileCheck,
+  FileQuestion,
+  FileX
 } from 'lucide-react';
 import { DetailedCase, HearingRecord, JudgmentRecord } from '../types';
 
@@ -114,6 +116,10 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
   // Judgments State
   const [judgments, setJudgments] = useState<JudgmentRecord[]>([]);
   const [judgmentSearchQuery, setJudgmentSearchQuery] = useState<string>('');
+
+  // New Data Quality Tables State
+  const [noReqTypeSearchQuery, setNoReqTypeSearchQuery] = useState<string>('');
+  const [noLinkHearingSearchQuery, setNoLinkHearingSearchQuery] = useState<string>('');
 
   const [lastUpdatedTime, setLastUpdatedTime] = useState<string>('');
 
@@ -243,6 +249,30 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
     return st.includes('منتهي') || st.includes('منتهية') || st.includes('محكوم') || st.includes('إغلاق') || st.includes('مغلقة') || st.includes('تم الانتهاء') || c.completedCases.toUpperCase() === 'TRUE';
   };
 
+  const isHearingFinished = (h: HearingRecord) => {
+    const st = (h.status || '').toLowerCase();
+    if (
+      st.includes('منتهية') ||
+      st.includes('منتهيه') ||
+      st.includes('متمة') ||
+      st.includes('مغلقة') ||
+      st.includes('تمت') ||
+      st.includes('منعقدة')
+    ) {
+      return true;
+    }
+    if (h.hearingDate) {
+      const dObj = parseDateString(h.hearingDate);
+      if (dObj) {
+        const days = calculateDaysDiff(dObj);
+        if (days < 0 && !st.includes('مقبلة') && !st.includes('قادمة') && !st.includes('جديدة')) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
   const getCaseOutcome = (c: DetailedCase): 'won' | 'lost' | 'settled' | 'unclear' | 'active' => {
     if (!isCaseFinished(c)) return 'active';
     const text = (c.currentSituation + ' ' + c.caseStatus + ' ' + c.notes + ' ' + c.completedCases).toLowerCase();
@@ -321,6 +351,78 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
     });
   }, [nonFinalJudgments, judgmentSearchQuery]);
 
+  // Cases without Request Type (Column R)
+  const casesWithoutRequestType = useMemo(() => {
+    return cases.filter(c => {
+      const r = (c.requestType || '').trim();
+      return !r || r === '-' || r === 'لا يوجد' || r === 'غير محدد';
+    });
+  }, [cases]);
+
+  const filteredCasesWithoutRequestType = useMemo(() => {
+    return casesWithoutRequestType.filter(c => {
+      if (!noReqTypeSearchQuery.trim()) return true;
+      const q = noReqTypeSearchQuery.trim().toLowerCase();
+      return (
+        c.caseNumber.toLowerCase().includes(q) ||
+        c.plaintiff.toLowerCase().includes(q) ||
+        c.defendant.toLowerCase().includes(q) ||
+        c.court.toLowerCase().includes(q) ||
+        c.caseManager.toLowerCase().includes(q) ||
+        c.classification.toLowerCase().includes(q)
+      );
+    });
+  }, [casesWithoutRequestType, noReqTypeSearchQuery]);
+
+  // Ended Hearings without Minutes Link (Column Q)
+  const endedHearingsWithoutLink = useMemo(() => {
+    return hearings
+      .filter(h => {
+        const isFinished = isHearingFinished(h);
+        const hasLink = isValidLink(h.link);
+        return isFinished && !hasLink;
+      })
+      .map(h => {
+        let linked: DetailedCase | null = null;
+        if (h.caseNumber) {
+          const hNo = h.caseNumber.trim().toLowerCase();
+          linked = cases.find(c => {
+            const cNo = c.caseNumber.trim().toLowerCase();
+            return cNo === hNo || (cNo && hNo && (cNo.includes(hNo) || hNo.includes(cNo)));
+          }) || null;
+        }
+        return {
+          hearing: h,
+          linkedCase: linked,
+          managerName: linked ? (linked.caseManager?.trim() || 'غير محدد') : 'غير محدد'
+        };
+      });
+  }, [hearings, cases]);
+
+  const filteredEndedHearingsWithoutLink = useMemo(() => {
+    return endedHearingsWithoutLink.filter(item => {
+      if (!noLinkHearingSearchQuery.trim()) return true;
+      const q = noLinkHearingSearchQuery.trim().toLowerCase();
+      const h = item.hearing;
+      const c = item.linkedCase;
+      return (
+        h.caseNumber.toLowerCase().includes(q) ||
+        h.recordNumber.toLowerCase().includes(q) ||
+        h.status.toLowerCase().includes(q) ||
+        h.hearingDate.toLowerCase().includes(q) ||
+        item.managerName.toLowerCase().includes(q) ||
+        (c && (c.plaintiff.toLowerCase().includes(q) || c.defendant.toLowerCase().includes(q)))
+      );
+    });
+  }, [endedHearingsWithoutLink, noLinkHearingSearchQuery]);
+
+  const scrollToSection = (id: string) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   // Overall Metrics
   const metrics = useMemo(() => {
     const total = cases.length;
@@ -346,8 +448,19 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
       }
     });
 
-    return { total, active, finished, won, settled, lost, unassigned, managersCount: managersList.length };
-  }, [cases, managersList]);
+    return {
+      total,
+      active,
+      finished,
+      won,
+      settled,
+      lost,
+      unassigned,
+      noReqTypeCount: casesWithoutRequestType.length,
+      noLinkHearingsCount: endedHearingsWithoutLink.length,
+      managersCount: managersList.length
+    };
+  }, [cases, managersList, casesWithoutRequestType, endedHearingsWithoutLink]);
 
   // Manager Summaries
   const managerSummaries = useMemo(() => {
@@ -662,7 +775,7 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
       {!loading && !error && (
         <>
           {/* Main KPI Stat Cards Bar */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-3">
             <div className="p-4 bg-[#0F1422] border border-slate-800 rounded-2xl space-y-1">
               <span className="text-[11px] text-slate-400 font-bold block">إجمالي القضايا</span>
               <div className="text-2xl font-black text-white font-mono">{metrics.total}</div>
@@ -703,6 +816,32 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
               <span className="text-[11px] text-amber-300 font-bold block">بدون مسؤول</span>
               <div className="text-2xl font-black text-amber-300 font-mono">{metrics.unassigned}</div>
               <span className="text-[10px] text-amber-500">بحاجة لتعيين</span>
+            </div>
+
+            <div
+              onClick={() => scrollToSection('cases-no-reqtype-section')}
+              className="p-4 bg-[#0F1422] border border-amber-500/40 rounded-2xl space-y-1 bg-amber-500/10 hover:border-amber-400 cursor-pointer transition-all group"
+              title="اضغط للانتقال إلى جدول القضايا بدون نوع طلب"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-amber-300 font-bold block truncate">بدون نوع طلب</span>
+                <FileQuestion className="w-3.5 h-3.5 text-amber-400 shrink-0 group-hover:scale-110 transition-transform" />
+              </div>
+              <div className="text-2xl font-black text-amber-300 font-mono">{metrics.noReqTypeCount}</div>
+              <span className="text-[10px] text-amber-400/80 block truncate">خانة R فارغة ⬇</span>
+            </div>
+
+            <div
+              onClick={() => scrollToSection('hearings-no-link-section')}
+              className="p-4 bg-[#0F1422] border border-rose-500/40 rounded-2xl space-y-1 bg-rose-500/10 hover:border-rose-400 cursor-pointer transition-all group"
+              title="اضغط للانتقال إلى جدول الجلسات المنتهية بدون ضبط"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-rose-300 font-bold block truncate">منتهية بدون ضبط</span>
+                <FileX className="w-3.5 h-3.5 text-rose-400 shrink-0 group-hover:scale-110 transition-transform" />
+              </div>
+              <div className="text-2xl font-black text-rose-300 font-mono">{metrics.noLinkHearingsCount}</div>
+              <span className="text-[10px] text-rose-400/80 block truncate">خانة Q بدون رابط ⬇</span>
             </div>
           </div>
 
@@ -1334,6 +1473,203 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
                           </tr>
                         );
                       })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 7: Cases Without Request Type Table (جدول القضايا بدون نوع طلب - خانة R) */}
+          <div id="cases-no-reqtype-section" className="space-y-4 pt-6 border-t border-slate-800">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <FileQuestion className="w-5 h-5 text-amber-400" />
+                <h3 className="text-lg font-black text-white">
+                  جدول القضايا التي بدون نوع طلب (خانة R)
+                </h3>
+                <span className="text-xs bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full font-mono font-bold">
+                  {casesWithoutRequestType.length} قضية
+                </span>
+              </div>
+            </div>
+
+            <div className="p-5 bg-[#0F1422] border border-slate-800 rounded-2xl space-y-4">
+              {/* Search Bar */}
+              <div className="max-w-md">
+                <label className="block text-slate-400 font-bold mb-1 text-xs">بحث في القضايا بدون نوع طلب</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={noReqTypeSearchQuery}
+                    onChange={(e) => setNoReqTypeSearchQuery(e.target.value)}
+                    placeholder="ابحث برقم القضية، المدعي، المسؤول..."
+                    className="w-full bg-[#0A0D16] border border-slate-800 rounded-xl p-2.5 pr-9 text-white font-medium text-xs outline-none focus:border-brand-primary placeholder-slate-600"
+                  />
+                  <Search className="w-4 h-4 text-slate-500 absolute top-3 right-3" />
+                </div>
+              </div>
+
+              {/* Table */}
+              <div className="overflow-x-auto rounded-xl border border-slate-800">
+                <table className="w-full text-right text-xs">
+                  <thead>
+                    <tr className="bg-slate-900 text-slate-400 font-bold border-b border-slate-800">
+                      <th className="p-3">رقم القضية</th>
+                      <th className="p-3 text-amber-300">المسؤول (N)</th>
+                      <th className="p-3">المدعي (E)</th>
+                      <th className="p-3">المدعى عليه (G)</th>
+                      <th className="p-3">المحكمة والدائرة (J & K)</th>
+                      <th className="p-3">التصنيف / نوع القضية (B & C)</th>
+                      <th className="p-3 text-center text-amber-400">نوع الطلب (R)</th>
+                      <th className="p-3">حالة القضية (M)</th>
+                      <th className="p-3 text-center">عرض</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800 text-slate-200">
+                    {filteredCasesWithoutRequestType.length === 0 ? (
+                      <tr>
+                        <td colSpan={9} className="p-8 text-center text-slate-500">
+                          لا توجد قضايا بدون نوع طلب مطابقة للبحث.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredCasesWithoutRequestType.map((c, idx) => (
+                        <tr key={`cnr-${idx}`} className="hover:bg-slate-800/40 transition-colors">
+                          <td className="p-3 font-bold text-white font-mono">{c.caseNumber || '-'}</td>
+                          <td className="p-3 font-black text-amber-300 bg-amber-500/10 rounded-lg">
+                            {c.caseManager || 'غير محدد'}
+                          </td>
+                          <td className="p-3 text-slate-300">{c.plaintiff || '-'}</td>
+                          <td className="p-3 text-slate-300">{c.defendant || '-'}</td>
+                          <td className="p-3">
+                            <span className="block font-medium text-slate-300">{c.court || '-'}</span>
+                            <span className="block text-slate-400 text-[11px]">{c.circuit || '-'}</span>
+                          </td>
+                          <td className="p-3">
+                            <span className="block font-medium text-slate-300">{c.classification || '-'}</span>
+                            <span className="block text-slate-400 text-[11px]">{c.caseType || '-'}</span>
+                          </td>
+                          <td className="p-3 text-center">
+                            <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 inline-flex items-center gap-1">
+                              <AlertTriangle className="w-3 h-3 text-amber-400" /> بدون نوع طلب
+                            </span>
+                          </td>
+                          <td className="p-3 font-medium text-slate-300">{c.caseStatus || '-'}</td>
+                          <td className="p-3 text-center">
+                            <button
+                              onClick={() => setSelectedCaseModal(c)}
+                              className="px-2.5 py-1 rounded-lg bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-primary font-bold text-xs border border-brand-primary/30 transition-colors"
+                            >
+                              عرض التفاصيل
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 8: Ended Hearings Without Minutes Link Table (جدول الجلسات المنتهية بدون ضبط - خانة Q) */}
+          <div id="hearings-no-link-section" className="space-y-4 pt-6 border-t border-slate-800">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <FileX className="w-5 h-5 text-rose-400" />
+                <h3 className="text-lg font-black text-white">
+                  جدول الجلسات المنتهية التي بدون رابط ضبط جلسة (خانة Q)
+                </h3>
+                <span className="text-xs bg-rose-500/15 text-rose-300 border border-rose-500/30 px-2.5 py-0.5 rounded-full font-mono font-bold">
+                  {endedHearingsWithoutLink.length} جلسة
+                </span>
+              </div>
+            </div>
+
+            <div className="p-5 bg-[#0F1422] border border-slate-800 rounded-2xl space-y-4">
+              {/* Search Bar */}
+              <div className="max-w-md">
+                <label className="block text-slate-400 font-bold mb-1 text-xs">بحث في الجلسات المنتهية بدون ضبط</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={noLinkHearingSearchQuery}
+                    onChange={(e) => setNoLinkHearingSearchQuery(e.target.value)}
+                    placeholder="ابحث برقم القضية، التاريخ، المسؤول..."
+                    className="w-full bg-[#0A0D16] border border-slate-800 rounded-xl p-2.5 pr-9 text-white font-medium text-xs outline-none focus:border-brand-primary placeholder-slate-600"
+                  />
+                  <Search className="w-4 h-4 text-slate-500 absolute top-3 right-3" />
+                </div>
+              </div>
+
+              {/* Table */}
+              <div className="overflow-x-auto rounded-xl border border-slate-800">
+                <table className="w-full text-right text-xs">
+                  <thead>
+                    <tr className="bg-slate-900 text-slate-400 font-bold border-b border-slate-800">
+                      <th className="p-3">رقم القضية</th>
+                      <th className="p-3 text-amber-300">المسؤول (N)</th>
+                      <th className="p-3">المدعي والمدعى عليه</th>
+                      <th className="p-3">تاريخ الجلسة والساعة</th>
+                      <th className="p-3 text-center">رقم الضبط (S)</th>
+                      <th className="p-3 text-center">حالة الجلسة (R)</th>
+                      <th className="p-3 text-center text-rose-400">رابط الضبط (Q)</th>
+                      <th className="p-3 text-center">عرض القضية</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800 text-slate-200">
+                    {filteredEndedHearingsWithoutLink.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="p-8 text-center text-slate-500">
+                          لا توجد جلسات منتهية بدون ضبط مطابقة للبحث.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredEndedHearingsWithoutLink.map((item, idx) => (
+                        <tr key={`hnl-${idx}`} className="hover:bg-slate-800/40 transition-colors">
+                          <td className="p-3 font-bold text-white font-mono">{item.hearing.caseNumber || '-'}</td>
+                          <td className="p-3 font-black text-amber-300 bg-amber-500/10 rounded-lg">
+                            {item.managerName}
+                          </td>
+                          <td className="p-3">
+                            <span className="block text-slate-200 font-medium">
+                              المدعي: {item.linkedCase?.plaintiff || '-'}
+                            </span>
+                            <span className="block text-slate-400 text-[11px]">
+                              المدعى عليه: {item.linkedCase?.defendant || '-'}
+                            </span>
+                          </td>
+                          <td className="p-3 font-bold text-white font-mono">
+                            {item.hearing.hearingDate} {item.hearing.hearingTime ? `(${item.hearing.hearingTime})` : ''}
+                          </td>
+                          <td className="p-3 text-center font-mono text-slate-300">
+                            {item.hearing.recordNumber || '-'}
+                          </td>
+                          <td className="p-3 text-center">
+                            <span className="px-2 py-0.5 rounded font-bold text-[10px] bg-slate-800 text-slate-300 border border-slate-700">
+                              {item.hearing.status || 'منتهية'}
+                            </span>
+                          </td>
+                          <td className="p-3 text-center">
+                            <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30 inline-flex items-center gap-1">
+                              <AlertTriangle className="w-3 h-3 text-rose-400" /> لا يوجد رابط ضبط
+                            </span>
+                          </td>
+                          <td className="p-3 text-center">
+                            {item.linkedCase ? (
+                              <button
+                                onClick={() => setSelectedCaseModal(item.linkedCase)}
+                                className="px-2.5 py-1 rounded-lg bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-primary font-bold text-xs border border-brand-primary/30 transition-colors"
+                              >
+                                عرض القضية
+                              </button>
+                            ) : (
+                              <span className="text-slate-600 text-[11px]">-</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
                     )}
                   </tbody>
                 </table>
