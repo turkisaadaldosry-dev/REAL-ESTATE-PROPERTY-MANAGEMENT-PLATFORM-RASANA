@@ -319,15 +319,14 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
     return Array.from(setR).sort();
   }, [cases]);
 
-  // Non-Final Judgments list (قضايا محكومة بحكم غير نهائي - شيت الأحكام)
+  // Non-Final Judgments list (جدول الأحكام والمتبقي على انتهاء المدة الاعتراضية بالميلادي - خانة T > 0)
   const nonFinalJudgments = useMemo(() => {
     return judgments.filter(j => {
-      const cond = ((j.judgmentCondition || '') + ' ' + (j.judgmentStatus || '')).toLowerCase();
-      const isNonFinal = cond.includes('غير نهائي') || cond.includes('غير نهائيه');
-      if (!isNonFinal) return false;
-
-      // Filter Column T (المتبقي على انتهاء المدة الاعتراضية): Only show if greater than 0 (> 0)
-      const days = parseInt(j.objectionDaysRemaining || '0', 10);
+      // Filter Column T (المتبقي على انتهاء المدة الاعتراضية بالميلادي):
+      // أي رقم أعلى من الصفر (> 0) يظهر، وإذا كانت أقل من أو تساوي 0 أو غير متوفرة تختفي من الجدول
+      const raw = (j.objectionDaysRemaining || '').trim();
+      if (!raw) return false;
+      const days = parseFloat(raw.replace(/[^0-9.-]/g, ''));
       if (isNaN(days) || days <= 0) {
         return false;
       }
