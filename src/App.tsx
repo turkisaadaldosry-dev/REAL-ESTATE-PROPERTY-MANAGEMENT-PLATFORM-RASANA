@@ -835,7 +835,7 @@ export default function App() {
       
       {/* Header / Navbar */}
       <nav className="w-full pt-6 px-4 sm:px-6 lg:px-8 mb-8">
-        <div className="max-w-7xl mx-auto">
+        <div className="w-full">
           <div className="neu-flat flex flex-col md:flex-row justify-between items-center py-5 px-6 gap-6 border border-slate-800/60">
             
             {/* Clickable Rasana Logo Integration */}
@@ -919,11 +919,11 @@ export default function App() {
         </div>
       </nav>
 
-      {/* Main Container */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* Main Container - Full Width */}
+      <main className="w-full px-4 sm:px-6 lg:px-8">
         
         {/* Modern Prestigious Tab Switcher */}
-        <div className="max-w-7xl mx-auto mb-8">
+        <div className="w-full mb-8">
           <div className="flex p-1.5 bg-[#0F1422] border border-slate-800/80 rounded-2xl max-w-3xl overflow-x-auto">
             <button
               onClick={() => setActiveTab('cases')}
