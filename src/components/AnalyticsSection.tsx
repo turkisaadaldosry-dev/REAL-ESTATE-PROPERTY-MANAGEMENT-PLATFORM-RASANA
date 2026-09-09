@@ -24,13 +24,15 @@ import {
   FolderOpen,
   FileCheck,
   FileQuestion,
-  FileX
+  FileX,
+  ArrowUpDown
 } from 'lucide-react';
-import { DetailedCase, HearingRecord, JudgmentRecord } from '../types';
+import { DetailedCase, HearingRecord, JudgmentRecord, MemoRecord } from '../types';
 
 const CASES_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT8qWdU0eFMs5IMYbDwamiGZCpDejrHdczl1d9D8Ivdo91ulEzeXC6uyrJmPw3-z9j4CtUnE5tUPdMn/pub?gid=1227781018&single=true&output=csv';
 const HEARINGS_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT8qWdU0eFMs5IMYbDwamiGZCpDejrHdczl1d9D8Ivdo91ulEzeXC6uyrJmPw3-z9j4CtUnE5tUPdMn/pub?gid=488217084&single=true&output=csv';
 const JUDGMENTS_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT8qWdU0eFMs5IMYbDwamiGZCpDejrHdczl1d9D8Ivdo91ulEzeXC6uyrJmPw3-z9j4CtUnE5tUPdMn/pub?gid=2104745904&single=true&output=csv';
+const MEMOS_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT8qWdU0eFMs5IMYbDwamiGZCpDejrHdczl1d9D8Ivdo91ulEzeXC6uyrJmPw3-z9j4CtUnE5tUPdMn/pub?gid=1641195402&single=true&output=csv';
 
 function parseDateString(dStr: string): Date | null {
   if (!dStr) return null;
@@ -121,6 +123,12 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
   const [noReqTypeSearchQuery, setNoReqTypeSearchQuery] = useState<string>('');
   const [noLinkHearingSearchQuery, setNoLinkHearingSearchQuery] = useState<string>('');
 
+  // Pending Untreated Memos State
+  const [memos, setMemos] = useState<MemoRecord[]>([]);
+  const [memoTaskFilter, setMemoTaskFilter] = useState<'all' | 'مذكرة يجب إرسالها' | 'مذكرة يجب الاطلاع عليها'>('all');
+  const [memoSearchQuery, setMemoSearchQuery] = useState<string>('');
+  const [memoSortOrder, setMemoSortOrder] = useState<'asc' | 'desc'>('asc');
+
   const [lastUpdatedTime, setLastUpdatedTime] = useState<string>('');
 
   // Sync initial casesRaw if available and state is empty
@@ -131,16 +139,17 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
     }
   }, [casesRaw]);
 
-  // Fetch Cases, Hearings & Judgments directly from Google Sheet CSVs live with cache-busting
+  // Fetch Cases, Hearings, Judgments & Memos directly from Google Sheet CSVs live with cache-busting
   const fetchData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const [casesRowsData, hearingsRowsData, judgmentsRowsData] = await Promise.all([
+      const [casesRowsData, hearingsRowsData, judgmentsRowsData, memosRowsData] = await Promise.all([
         parseCsvSheet(CASES_SHEET_URL),
         parseCsvSheet(HEARINGS_SHEET_URL),
-        parseCsvSheet(JUDGMENTS_SHEET_URL)
+        parseCsvSheet(JUDGMENTS_SHEET_URL),
+        parseCsvSheet(MEMOS_SHEET_URL)
       ]);
 
       if (casesRowsData && casesRowsData.length > 1) {
@@ -227,6 +236,40 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
             };
           });
         setJudgments(parsedJudgments);
+      }
+
+      if (memosRowsData && memosRowsData.length > 1) {
+        const rows = memosRowsData.slice(1);
+        const parsedMemos: MemoRecord[] = rows
+          .filter(r => r.some(c => c && c.trim()))
+          .map((r, idx) => {
+            const s = r.map(c => (c ? c.trim() : ''));
+            return {
+              id: `memo-${idx}`,
+              caseNumber: s[0] || '',          // Col 0 [A] رقم القضية
+              classification: s[1] || '',      // Col 1 [B]
+              caseType: s[2] || '',            // Col 2 [C]
+              caseDate: s[3] || '',            // Col 3 [D]
+              plaintiff: s[4] || '',           // Col 4 [E] المدعي
+              plaintiffId: s[5] || '',         // Col 5 [F]
+              defendant: s[6] || '',           // Col 6 [G] المدعى عليه
+              defendantId: s[7] || '',         // Col 7 [H]
+              claims: s[8] || '',              // Col 8 [I] الطلبات
+              court: s[9] || '',               // Col 9 [J] المحكمة
+              circuit: s[10] || '',            // Col 10 [K] الدائرة
+              driveLink: s[11] || '',          // Col 11 [L]
+              task: s[12] || '',               // Col 12 [M] المهمة
+              dueDate: s[13] || '',            // Col 13 [N] تاريخ استلام او تسليم المذكرة
+              daysRemaining: s[14] || '',      // Col 14 [O] المتبقي على التسليم
+              status: s[15] || '',             // Col 15 [P] الحالة
+              actualDeliveryDate: s[16] || '', // Col 16 [Q] تاريخ الحالة
+              attachmentLink: s[17] || '',     // Col 17 [R] رابط المذكرة
+              memoNumber: s[18] || '',         // Col 18 [S]
+              najizRequestNumber: s[19] || '', // Col 19 [T]
+              rawRow: s,
+            };
+          });
+        setMemos(parsedMemos);
       }
 
       const now = new Date();
@@ -415,6 +458,125 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
     });
   }, [endedHearingsWithoutLink, noLinkHearingSearchQuery]);
 
+  // Pending / Untreated Memos Helpers & Filters
+  const isMemoUntreated = (m: MemoRecord) => {
+    const task = (m.task || '').trim();
+    if (!task.includes('مذكرة')) return false;
+    if (!task.includes('إرسال') && !task.includes('الاطلاع')) return false;
+
+    const st = (m.status || '').trim();
+    const act = (m.actualDeliveryDate || '').trim();
+    const link = (m.attachmentLink || '').trim();
+
+    // If marked as completed, delivered, or early/late/on-time in the sheet
+    if (st === 'في الوقت' || st === 'متأخر' || st === 'مبكر' || st.includes('منجز') || st.includes('تم')) {
+      return false;
+    }
+    if (act && act !== '-' && act !== 'لا يوجد') {
+      return false;
+    }
+    if (link && st) {
+      return false;
+    }
+    return true;
+  };
+
+  const parseRemainingDays = (m: MemoRecord): number | null => {
+    if (m.daysRemaining && m.daysRemaining.trim() !== '') {
+      const parsed = parseInt(m.daysRemaining.replace(/[^0-9.-]/g, ''), 10);
+      if (!isNaN(parsed)) return parsed;
+    }
+    if (m.dueDate) {
+      const dObj = parseDateString(m.dueDate);
+      if (dObj) {
+        return calculateDaysDiff(dObj);
+      }
+    }
+    return null;
+  };
+
+  // Pending Untreated Memos List with Case Matching
+  const pendingUntreatedMemos = useMemo(() => {
+    return memos
+      .filter(isMemoUntreated)
+      .map(m => {
+        let linked: DetailedCase | null = null;
+        if (m.caseNumber) {
+          const mNo = m.caseNumber.trim().toLowerCase();
+          linked = cases.find(c => {
+            const cNo = c.caseNumber.trim().toLowerCase();
+            return cNo === mNo || (cNo && mNo && (cNo.includes(mNo) || mNo.includes(cNo)));
+          }) || null;
+        }
+        return {
+          memo: m,
+          linkedCase: linked,
+          managerName: linked ? (linked.caseManager?.trim() || 'غير محدد') : 'غير محدد'
+        };
+      });
+  }, [memos, cases]);
+
+  const memoStats = useMemo(() => {
+    const total = pendingUntreatedMemos.length;
+    const sendCount = pendingUntreatedMemos.filter(item => item.memo.task === 'مذكرة يجب إرسالها').length;
+    const reviewCount = pendingUntreatedMemos.filter(item => item.memo.task === 'مذكرة يجب الاطلاع عليها').length;
+    const nukoolCount = pendingUntreatedMemos.filter(item => {
+      if (item.memo.task !== 'مذكرة يجب الاطلاع عليها') return false;
+      const days = parseRemainingDays(item.memo);
+      return days !== null && days <= 0;
+    }).length;
+    return { total, sendCount, reviewCount, nukoolCount };
+  }, [pendingUntreatedMemos]);
+
+  const filteredPendingMemos = useMemo(() => {
+    const list = pendingUntreatedMemos.filter(item => {
+      const m = item.memo;
+      if (memoTaskFilter !== 'all') {
+        if (m.task !== memoTaskFilter) return false;
+      }
+      if (memoSearchQuery.trim()) {
+        const q = memoSearchQuery.trim().toLowerCase();
+        const c = item.linkedCase;
+        const matchCaseNo = m.caseNumber.toLowerCase().includes(q);
+        const matchPl = (m.plaintiff || (c ? c.plaintiff : '')).toLowerCase().includes(q);
+        const matchDef = (m.defendant || (c ? c.defendant : '')).toLowerCase().includes(q);
+        const matchClaims = (m.claims || (c ? c.claims : '')).toLowerCase().includes(q);
+        const matchCourt = (m.court || (c ? c.court : '')).toLowerCase().includes(q);
+        const matchCircuit = (m.circuit || (c ? c.circuit : '')).toLowerCase().includes(q);
+        const matchManager = item.managerName.toLowerCase().includes(q);
+        const matchDue = m.dueDate.toLowerCase().includes(q);
+        const matchTask = m.task.toLowerCase().includes(q);
+
+        if (
+          !matchCaseNo &&
+          !matchPl &&
+          !matchDef &&
+          !matchClaims &&
+          !matchCourt &&
+          !matchCircuit &&
+          !matchManager &&
+          !matchDue &&
+          !matchTask
+        ) {
+          return false;
+        }
+      }
+      return true;
+    });
+
+    // الترتيب: المتأخر أولاً (القيم السالبة الأكبر تأخيراً)، ثم 0، ثم الأقرب فالأقرب تصاعدياً
+    return [...list].sort((a, b) => {
+      const daysA = parseRemainingDays(a.memo);
+      const daysB = parseRemainingDays(b.memo);
+
+      if (daysA === null && daysB === null) return 0;
+      if (daysA === null) return 1;
+      if (daysB === null) return -1;
+
+      return memoSortOrder === 'asc' ? daysA - daysB : daysB - daysA;
+    });
+  }, [pendingUntreatedMemos, memoTaskFilter, memoSearchQuery, memoSortOrder]);
+
   const scrollToSection = (id: string) => {
     const el = document.getElementById(id);
     if (el) {
@@ -457,9 +619,10 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
       unassigned,
       noReqTypeCount: casesWithoutRequestType.length,
       noLinkHearingsCount: endedHearingsWithoutLink.length,
+      pendingMemosCount: pendingUntreatedMemos.length,
       managersCount: managersList.length
     };
-  }, [cases, managersList, casesWithoutRequestType, endedHearingsWithoutLink]);
+  }, [cases, managersList, casesWithoutRequestType, endedHearingsWithoutLink, pendingUntreatedMemos]);
 
   // Manager Summaries
   const managerSummaries = useMemo(() => {
@@ -774,7 +937,7 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
       {!loading && !error && (
         <>
           {/* Main KPI Stat Cards Bar */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-10 gap-3">
             <div className="p-4 bg-[#0F1422] border border-slate-800 rounded-2xl space-y-1">
               <span className="text-[11px] text-slate-400 font-bold block">إجمالي القضايا</span>
               <div className="text-2xl font-black text-white font-mono">{metrics.total}</div>
@@ -841,6 +1004,19 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
               </div>
               <div className="text-2xl font-black text-rose-300 font-mono">{metrics.noLinkHearingsCount}</div>
               <span className="text-[10px] text-rose-400/80 block truncate">خانة Q بدون رابط ⬇</span>
+            </div>
+
+            <div
+              onClick={() => scrollToSection('pending-memos-section')}
+              className="p-4 bg-[#0F1422] border border-blue-500/40 rounded-2xl space-y-1 bg-blue-500/10 hover:border-blue-400 cursor-pointer transition-all group"
+              title="اضغط للانتقال إلى جدول المذكرات بانتظار الإجراء"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-blue-300 font-bold block truncate">مذكرات معلقة</span>
+                <FileText className="w-3.5 h-3.5 text-blue-400 shrink-0 group-hover:scale-110 transition-transform" />
+              </div>
+              <div className="text-2xl font-black text-blue-300 font-mono">{metrics.pendingMemosCount}</div>
+              <span className="text-[10px] text-blue-400/80 block truncate">إرسال / اطلاع (M) ⬇</span>
             </div>
           </div>
 
@@ -1669,6 +1845,323 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
                           </td>
                         </tr>
                       ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 9: Pending Untreated Memos Table (جدول المذكرات المطلوب إرسالها أو الاطلاع عليها - بانتظار الإجراء) */}
+          <div id="pending-memos-section" className="space-y-4 pt-6 border-t border-slate-800">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <FileText className="w-5 h-5 text-blue-400" />
+                <h3 className="text-lg font-black text-white">
+                  جدول المذكرات بانتظار الإجراء (مطلوب إرسالها أو الاطلاع عليها)
+                </h3>
+                <span className="text-xs bg-blue-500/15 text-blue-300 border border-blue-500/30 px-2.5 py-0.5 rounded-full font-mono font-bold">
+                  {pendingUntreatedMemos.length} مذكرة معلقة
+                </span>
+                {memoStats.nukoolCount > 0 && (
+                  <span className="text-xs bg-rose-500/20 text-rose-300 border border-rose-500/40 px-2.5 py-0.5 rounded-full font-bold inline-flex items-center gap-1 animate-pulse">
+                    <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
+                    {memoStats.nukoolCount} يستوجب إرسال مذكرة نكول
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="p-5 bg-[#0F1422] border border-slate-800 rounded-2xl space-y-4">
+              {/* Filter Controls (Col M: المهمة) & Search Input */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                {/* Task Filter Tabs (خانة M) */}
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+                  <span className="text-xs text-slate-400 font-bold ml-1 shrink-0 flex items-center gap-1">
+                    <Filter className="w-3.5 h-3.5 text-slate-400" /> تصفية المهمة (M):
+                  </span>
+                  <button
+                    onClick={() => setMemoTaskFilter('all')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 ${
+                      memoTaskFilter === 'all'
+                        ? 'bg-brand-primary text-slate-900 shadow-md shadow-brand-primary/20'
+                        : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800'
+                    }`}
+                  >
+                    <span>الكل</span>
+                    <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-mono ${
+                      memoTaskFilter === 'all' ? 'bg-slate-900/30 text-slate-900' : 'bg-slate-800 text-slate-400'
+                    }`}>
+                      {memoStats.total}
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => setMemoTaskFilter('مذكرة يجب إرسالها')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 ${
+                      memoTaskFilter === 'مذكرة يجب إرسالها'
+                        ? 'bg-blue-500 text-white shadow-md shadow-blue-500/20'
+                        : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800'
+                    }`}
+                  >
+                    <span className="w-2 h-2 rounded-full bg-blue-400" />
+                    <span>مذكرة يجب إرسالها</span>
+                    <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-mono ${
+                      memoTaskFilter === 'مذكرة يجب إرسالها' ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-400'
+                    }`}>
+                      {memoStats.sendCount}
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => setMemoTaskFilter('مذكرة يجب الاطلاع عليها')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 ${
+                      memoTaskFilter === 'مذكرة يجب الاطلاع عليها'
+                        ? 'bg-purple-500 text-white shadow-md shadow-purple-500/20'
+                        : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800'
+                    }`}
+                  >
+                    <span className="w-2 h-2 rounded-full bg-purple-400" />
+                    <span>مذكرة يجب الاطلاع عليها</span>
+                    <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-mono ${
+                      memoTaskFilter === 'مذكرة يجب الاطلاع عليها' ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-400'
+                    }`}>
+                      {memoStats.reviewCount}
+                    </span>
+                  </button>
+
+                  {/* Sort Order Toggle Button */}
+                  <button
+                    onClick={() => setMemoSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                    className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 bg-amber-500/10 text-amber-300 border border-amber-500/30 hover:bg-amber-500/20"
+                    title="اضغط لتبديل الترتيب"
+                  >
+                    <ArrowUpDown className="w-3.5 h-3.5 text-amber-400" />
+                    <span>الترتيب: {memoSortOrder === 'asc' ? 'المتأخر أولاً ثم الأقرب' : 'الأبعد أولاً'}</span>
+                  </button>
+                </div>
+
+                {/* Instant Search Bar */}
+                <div className="max-w-md w-full">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={memoSearchQuery}
+                      onChange={(e) => setMemoSearchQuery(e.target.value)}
+                      placeholder="بحث برقم القضية، المدعي، المدعى عليه، المحكمة، الطلبات..."
+                      className="w-full bg-[#0A0D16] border border-slate-800 rounded-xl p-2.5 pr-9 text-white font-medium text-xs outline-none focus:border-brand-primary placeholder-slate-600"
+                    />
+                    <Search className="w-4 h-4 text-slate-500 absolute top-3 right-3" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Table */}
+              <div className="overflow-x-auto rounded-xl border border-slate-800 max-h-[650px] overflow-y-auto">
+                <table className="w-full text-right text-xs">
+                  <thead className="sticky top-0 bg-[#0F1422] z-10 shadow-sm">
+                    <tr className="text-slate-400 font-bold border-b border-slate-800">
+                      <th className="p-3">رقم القضية</th>
+                      <th className="p-3">المدعي</th>
+                      <th className="p-3">المدعى عليه</th>
+                      <th className="p-3 max-w-[220px]">الطلبات</th>
+                      <th className="p-3">المحكمة</th>
+                      <th className="p-3">الدائرة</th>
+                      <th className="p-3 text-center">المهمة (M)</th>
+                      <th className="p-3 text-center">تاريخ استلام أو تسليم المذكرة</th>
+                      <th
+                        onClick={() => setMemoSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                        className="p-3 text-center text-amber-300 cursor-pointer select-none hover:text-white transition-colors"
+                        title="اضغط لتبديل اتجاه الترتيب"
+                      >
+                        <div className="inline-flex items-center gap-1.5 justify-center">
+                          <span>المتبقي على التسليم</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1 font-normal font-sans">
+                            <ArrowUpDown className="w-2.5 h-2.5" />
+                            {memoSortOrder === 'asc' ? 'المتأخر أولاً ⬇' : 'الأبعد أولاً ⬆'}
+                          </span>
+                        </div>
+                      </th>
+                      <th className="p-3 text-center">عرض</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800 text-slate-200">
+                    {filteredPendingMemos.length === 0 ? (
+                      <tr>
+                        <td colSpan={10} className="p-8 text-center text-slate-500">
+                          لا توجد مذكرات معلقة مطابقة لشروط الفلترة الحالية.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredPendingMemos.map((item, idx) => {
+                        const m = item.memo;
+                        const days = parseRemainingDays(m);
+                        const isReview = m.task.includes('الاطلاع');
+
+                        return (
+                          <tr key={`pm-${m.id || idx}`} className="hover:bg-slate-800/40 transition-colors">
+                            {/* رقم القضية */}
+                            <td className="p-3 font-bold text-white font-mono whitespace-nowrap">
+                              <div>{m.caseNumber || '-'}</div>
+                              {item.managerName && item.managerName !== 'غير محدد' && (
+                                <div className="text-[10px] text-amber-300 font-normal font-sans mt-0.5">
+                                  المسؤول: {item.managerName}
+                                </div>
+                              )}
+                            </td>
+
+                            {/* المدعي */}
+                            <td className="p-3 text-slate-300 font-medium">
+                              {m.plaintiff || item.linkedCase?.plaintiff || '-'}
+                            </td>
+
+                            {/* المدعى عليه */}
+                            <td className="p-3 text-slate-300 font-medium">
+                              {m.defendant || item.linkedCase?.defendant || '-'}
+                            </td>
+
+                            {/* الطلبات */}
+                            <td className="p-3 text-slate-400 max-w-[220px]">
+                              <p className="truncate" title={m.claims || item.linkedCase?.claims || ''}>
+                                {m.claims || item.linkedCase?.claims || '-'}
+                              </p>
+                            </td>
+
+                            {/* المحكمة */}
+                            <td className="p-3 text-slate-300">
+                              {m.court || item.linkedCase?.court || '-'}
+                            </td>
+
+                            {/* الدائرة */}
+                            <td className="p-3 text-slate-300">
+                              {m.circuit || item.linkedCase?.circuit || '-'}
+                            </td>
+
+                            {/* المهمة (M) */}
+                            <td className="p-3 text-center whitespace-nowrap">
+                              {m.task === 'مذكرة يجب إرسالها' ? (
+                                <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-500/15 text-blue-300 border border-blue-500/30 inline-flex items-center gap-1.5">
+                                  <FileText className="w-3 h-3 text-blue-400" />
+                                  مذكرة يجب إرسالها
+                                </span>
+                              ) : m.task === 'مذكرة يجب الاطلاع عليها' ? (
+                                <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-purple-500/15 text-purple-300 border border-purple-500/30 inline-flex items-center gap-1.5">
+                                  <Clock className="w-3 h-3 text-purple-400" />
+                                  مذكرة يجب الاطلاع عليها
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 rounded font-bold text-[10px] bg-slate-800 text-slate-300 border border-slate-700">
+                                  {m.task || '-'}
+                                </span>
+                              )}
+                            </td>
+
+                            {/* تاريخ استلام أو تسليم المذكرة */}
+                            <td className="p-3 text-center font-bold text-white font-mono whitespace-nowrap">
+                              {m.dueDate || '-'}
+                            </td>
+
+                            {/* المتبقي على التسليم (مع شرط مذكرة نكول للمتبقي <= 0 في الاطلاع) */}
+                            <td className="p-3 text-center whitespace-nowrap">
+                              {(() => {
+                                // شرط: إذا كانت المهمة "مذكرة يجب الاطلاع عليها" والمتبقي <= 0:
+                                // يتم وضع "إرسال مذكرة نكول"
+                                if (isReview && days !== null && days <= 0) {
+                                  return (
+                                    <div className="flex flex-col items-center gap-1">
+                                      <span className="px-3 py-1.5 rounded-xl font-black text-[11px] bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-sm inline-flex items-center gap-1.5">
+                                        <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
+                                        إرسال مذكرة نكول
+                                      </span>
+                                      <span className="text-[10px] text-rose-400/90 font-mono">
+                                        انتهت المدة ({days} يوم)
+                                      </span>
+                                    </div>
+                                  );
+                                }
+
+                                if (isReview && days !== null && days > 0) {
+                                  return (
+                                    <span className="px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-sky-500/15 text-sky-300 border border-sky-500/30">
+                                      متبقي {days} يوم
+                                    </span>
+                                  );
+                                }
+
+                                // مذكرة يجب إرسالها
+                                if (days !== null && days < 0) {
+                                  return (
+                                    <span className="px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30">
+                                      متأخرة ({days} يوم)
+                                    </span>
+                                  );
+                                }
+
+                                if (days !== null && days === 0) {
+                                  return (
+                                    <span className="px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                                      اليوم (0 يوم)
+                                    </span>
+                                  );
+                                }
+
+                                if (days !== null && days > 0) {
+                                  return (
+                                    <span className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold ${
+                                      days <= 3
+                                        ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                                        : 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
+                                    }`}>
+                                      متبقي {days} يوم
+                                    </span>
+                                  );
+                                }
+
+                                return <span className="text-slate-500 font-mono">{m.daysRemaining || '-'}</span>;
+                              })()}
+                            </td>
+
+                            {/* عرض القضية / التفاصيل */}
+                            <td className="p-3 text-center whitespace-nowrap">
+                              <button
+                                onClick={() => {
+                                  if (item.linkedCase) {
+                                    setSelectedCaseModal(item.linkedCase);
+                                  } else {
+                                    setSelectedCaseModal({
+                                      caseNumber: m.caseNumber,
+                                      classification: m.classification || '',
+                                      caseType: m.caseType || '',
+                                      caseDate: m.caseDate || '',
+                                      plaintiff: m.plaintiff || '',
+                                      plaintiffId: m.plaintiffId || '',
+                                      defendant: m.defendant || '',
+                                      defendantId: m.defendantId || '',
+                                      claims: m.claims || '',
+                                      court: m.court || '',
+                                      circuit: m.circuit || '',
+                                      driveLink: m.driveLink || '',
+                                      caseStatus: '',
+                                      caseManager: item.managerName,
+                                      currentSituation: m.task,
+                                      fileNameQ: '',
+                                      requestType: '',
+                                      completedCases: '',
+                                      reportDate: '',
+                                      notes: `المهمة: ${m.task} | تاريخ الاستحقاق: ${m.dueDate} | المتبقي: ${m.daysRemaining || '-'} يوم`,
+                                      instrumentDeed: '',
+                                      rawRow: m.rawRow
+                                    });
+                                  }
+                                }}
+                                className="px-2.5 py-1 rounded-lg bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-primary font-bold text-xs border border-brand-primary/30 transition-colors"
+                              >
+                                عرض القضية
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>

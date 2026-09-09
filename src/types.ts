@@ -151,13 +151,26 @@ export interface HearingRecord {
 
 export interface MemoRecord {
   id: string;
-  caseNumber: string;       // Linked case number
-  memoNumber: string;       // S: رقم المذكرة
-  task: string;             // M: المهمة
-  dueDate: string;          // N: تاريخ التسليم
-  status: string;           // P: الحالة
-  actualDeliveryDate: string;// Q: تاريخ التسليم الفعلي
-  attachmentLink: string;   // R: مرفق المذكرة
+  caseNumber: string;       // Linked case number (Col A)
+  classification?: string;  // Col B: تصنيف القضية
+  caseType?: string;        // Col C: نوع القضية
+  caseDate?: string;        // Col D: تاريخ القضية
+  plaintiff?: string;       // Col E: المدعي
+  plaintiffId?: string;     // Col F: هوية المدعي
+  defendant?: string;       // Col G: المدعى عليه
+  defendantId?: string;     // Col H: هوية المدعى عليه
+  claims?: string;          // Col I: طلبات
+  court?: string;           // Col J: المحكمة
+  circuit?: string;         // Col K: الدائرة
+  driveLink?: string;       // Col L: ملف القضية
+  task: string;             // Col M: المهمة
+  dueDate: string;          // Col N: تاريخ استلام او تسليم المذكرة
+  daysRemaining?: string;   // Col O: المتبقي على التسليم
+  status: string;           // Col P: الحالة
+  actualDeliveryDate: string;// Col Q: تاريخ الحالة / تاريخ التسليم الفعلي
+  attachmentLink: string;   // Col R: رابط المذكرة مع المرفقات
+  memoNumber: string;       // Col S: رقم المذكرة
+  najizRequestNumber?: string;// Col T: رقم طلب ناجز
   rawRow: string[];
 }
 
