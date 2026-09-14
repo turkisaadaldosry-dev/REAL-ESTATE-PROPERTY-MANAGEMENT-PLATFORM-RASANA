@@ -260,6 +260,7 @@ export default function CasesSection() {
             reportDate: s[19] || '',      // T
             notes: s[20] || '',           // U
             instrumentDeed: s[21] || '',  // V
+            caseOfficer: s[22] || '',     // W: ضابط القضايا
             rawRow: s,
           };
         });
@@ -1726,17 +1727,27 @@ export default function CasesSection() {
               </button>
             </div>
 
-            {/* Main Info Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
-              
-              {/* 0. المسؤول عن القضية (N) */}
-              <div className="p-4 bg-brand-primary/10 border border-brand-primary/30 rounded-2xl space-y-1">
+            {/* المسؤول وضابط القضية جنباً إلى جنب */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              {/* المسؤول عن القضية (N) */}
+              <div className="p-4 bg-brand-primary/10 border border-brand-primary/30 rounded-2xl space-y-1 shadow-sm">
                 <span className="text-brand-primary block font-bold flex items-center gap-1.5">
                   <User className="w-4 h-4 text-brand-primary" /> المسؤول عن القضية (خانة N)
                 </span>
-                <p className="font-black text-amber-300 text-sm">{selectedCaseModal.caseManager || 'غير محدد'}</p>
+                <p className="font-black text-amber-300 text-sm sm:text-base">{selectedCaseModal.caseManager || 'غير محدد'}</p>
               </div>
 
+              {/* ضابط القضية (W) */}
+              <div className="p-4 bg-purple-500/10 border border-purple-500/30 rounded-2xl space-y-1 shadow-sm">
+                <span className="text-purple-300 block font-bold flex items-center gap-1.5">
+                  <Shield className="w-4 h-4 text-purple-400" /> ضابط القضية (خانة W)
+                </span>
+                <p className="font-black text-purple-200 text-sm sm:text-base">{selectedCaseModal.caseOfficer || 'غير محدد'}</p>
+              </div>
+            </div>
+
+            {/* Main Info Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
               {/* 1. المحكمة والدائرة (J & K) */}
               <div className="p-4 bg-[#0A0D16] border border-slate-800 rounded-2xl space-y-1">
                 <span className="text-slate-400 block font-semibold">1. المحكمة والدائرة (خانة J & K)</span>

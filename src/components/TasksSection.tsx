@@ -1130,8 +1130,11 @@ export default function TasksSection({
               </div>
 
               <div className="p-3.5 bg-[#0A0D16] border border-slate-800 rounded-xl space-y-1">
-                <span className="text-slate-400 block">حالة القضية والمسؤول</span>
-                <p className="font-bold text-slate-100">{selectedCase.caseStatus || '-'} ({selectedCase.caseManager || 'غير محدد'})</p>
+                <span className="text-slate-400 block">حالة القضية والمسؤول وضابط القضية</span>
+                <p className="font-bold text-slate-100">
+                  {selectedCase.caseStatus || '-'} • المسؤول: {selectedCase.caseManager || 'غير محدد'}
+                  {selectedCase.caseOfficer ? ` • ضابط القضية: ${selectedCase.caseOfficer}` : ''}
+                </p>
               </div>
 
             </div>

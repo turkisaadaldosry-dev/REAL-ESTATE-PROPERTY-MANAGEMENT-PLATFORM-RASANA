@@ -373,6 +373,7 @@ export default function App() {
                 reportDate: s[19] || '',
                 notes: s[20] || '',
                 instrumentDeed: s[21] || '',
+                caseOfficer: s[22] || '',
                 rawRow: s,
               };
             });

@@ -25,7 +25,8 @@ import {
   FileCheck,
   FileQuestion,
   FileX,
-  ArrowUpDown
+  ArrowUpDown,
+  Shield
 } from 'lucide-react';
 import { DetailedCase, HearingRecord, JudgmentRecord, MemoRecord } from '../types';
 
@@ -180,6 +181,7 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
               reportDate: s[19] || '',      // T: تاريخ رفع التقرير
               notes: s[20] || '',           // U: ملاحظات
               instrumentDeed: s[21] || '',  // V: الصك
+              caseOfficer: s[22] || '',     // W: ضابط القضايا
               rawRow: s,
             };
           });
@@ -2191,12 +2193,22 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
-              <div className="p-4 bg-brand-primary/10 border border-brand-primary/30 rounded-2xl space-y-1">
+            {/* المسؤول وضابط القضية جنباً إلى جنب */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <div className="p-4 bg-brand-primary/10 border border-brand-primary/30 rounded-2xl space-y-1 shadow-sm">
                 <span className="text-brand-primary font-bold block">المسؤول عن القضية (N)</span>
-                <p className="font-black text-amber-300 text-sm">{selectedCaseModal.caseManager || 'غير محدد'}</p>
+                <p className="font-black text-amber-300 text-sm sm:text-base">{selectedCaseModal.caseManager || 'غير محدد'}</p>
               </div>
 
+              <div className="p-4 bg-purple-500/10 border border-purple-500/30 rounded-2xl space-y-1 shadow-sm">
+                <span className="text-purple-300 font-bold block flex items-center gap-1.5">
+                  <Shield className="w-3.5 h-3.5 text-purple-400" /> ضابط القضية (W)
+                </span>
+                <p className="font-black text-purple-200 text-sm sm:text-base">{selectedCaseModal.caseOfficer || 'غير محدد'}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
               <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl space-y-1">
                 <span className="text-slate-400 font-semibold block">المحكمة والدائرة (J & K)</span>
                 <p className="font-bold text-white">{selectedCaseModal.court || '-'} / {selectedCaseModal.circuit || '-'}</p>

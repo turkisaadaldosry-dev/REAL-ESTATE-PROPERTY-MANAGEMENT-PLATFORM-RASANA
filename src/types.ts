@@ -111,6 +111,7 @@ export interface DetailedCase {
   reportDate: string;       // T: تاريخ رفع التقرير
   notes: string;            // U: ملاحظات
   instrumentDeed: string;   // V: الصك
+  caseOfficer?: string;     // W: ضابط القضايا
   rawRow: string[];
 }
 
