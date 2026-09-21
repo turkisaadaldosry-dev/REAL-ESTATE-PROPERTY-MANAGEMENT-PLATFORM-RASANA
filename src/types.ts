@@ -178,6 +178,7 @@ export interface MemoRecord {
 export interface JudgmentRecord {
   id: string;
   caseNumber: string;       // Linked case number
+  claims?: string;          // I: طلبات
   judgmentStatus: string;   // M: حالة الحكم
   instrumentNumber: string; // N: رقم الصك
   judgmentDate: string;     // P: تاريخ الحكم بالميلادي

@@ -223,6 +223,7 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
               caseType: s[2] || '',            // Col 2 [C]
               plaintiff: s[4] || '',           // Col 4 [E]
               defendant: s[6] || '',           // Col 6 [G]
+              claims: s[8] || '',              // Col 8 [I]
               court: s[9] || '',               // Col 9 [J]
               circuit: s[10] || '',            // Col 10 [K]
               driveLink: s[11] || '',          // Col 11 [L]
@@ -384,16 +385,19 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
     return nonFinalJudgments.filter(j => {
       if (!judgmentSearchQuery.trim()) return true;
       const q = judgmentSearchQuery.trim().toLowerCase();
+      const matchingCase = cases.find(c => c.caseNumber && (c.caseNumber.trim() === j.caseNumber.trim() || j.caseNumber.includes(c.caseNumber)));
+      const claimsVal = (matchingCase?.claims || j.claims || '').toLowerCase();
       return (
         j.caseNumber.toLowerCase().includes(q) ||
         (j.plaintiff && j.plaintiff.toLowerCase().includes(q)) ||
         (j.defendant && j.defendant.toLowerCase().includes(q)) ||
         (j.court && j.court.toLowerCase().includes(q)) ||
         (j.instrumentNumber && j.instrumentNumber.toLowerCase().includes(q)) ||
-        (j.classification && j.classification.toLowerCase().includes(q))
+        (j.classification && j.classification.toLowerCase().includes(q)) ||
+        claimsVal.includes(q)
       );
     });
-  }, [nonFinalJudgments, judgmentSearchQuery]);
+  }, [nonFinalJudgments, judgmentSearchQuery, cases]);
 
   // Cases without Request Type (Column R)
   const casesWithoutRequestType = useMemo(() => {
@@ -438,7 +442,8 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
         return {
           hearing: h,
           linkedCase: linked,
-          managerName: linked ? (linked.caseManager?.trim() || 'غير محدد') : 'غير محدد'
+          managerName: linked ? (linked.caseManager?.trim() || 'غير محدد') : 'غير محدد',
+          officerName: linked ? (linked.caseOfficer?.trim() || 'غير محدد') : 'غير محدد'
         };
       });
   }, [hearings, cases]);
@@ -454,6 +459,7 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
         h.recordNumber.toLowerCase().includes(q) ||
         h.status.toLowerCase().includes(q) ||
         h.hearingDate.toLowerCase().includes(q) ||
+        item.officerName.toLowerCase().includes(q) ||
         item.managerName.toLowerCase().includes(q) ||
         (c && (c.plaintiff.toLowerCase().includes(q) || c.defendant.toLowerCase().includes(q)))
       );
@@ -513,7 +519,8 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
         return {
           memo: m,
           linkedCase: linked,
-          managerName: linked ? (linked.caseManager?.trim() || 'غير محدد') : 'غير محدد'
+          managerName: linked ? (linked.caseManager?.trim() || 'غير محدد') : 'غير محدد',
+          officerName: linked ? (linked.caseOfficer?.trim() || 'غير محدد') : 'غير محدد'
         };
       });
   }, [memos, cases]);
@@ -545,6 +552,7 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
         const matchClaims = (m.claims || (c ? c.claims : '')).toLowerCase().includes(q);
         const matchCourt = (m.court || (c ? c.court : '')).toLowerCase().includes(q);
         const matchCircuit = (m.circuit || (c ? c.circuit : '')).toLowerCase().includes(q);
+        const matchOfficer = item.officerName.toLowerCase().includes(q);
         const matchManager = item.managerName.toLowerCase().includes(q);
         const matchDue = m.dueDate.toLowerCase().includes(q);
         const matchTask = m.task.toLowerCase().includes(q);
@@ -556,6 +564,7 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
           !matchClaims &&
           !matchCourt &&
           !matchCircuit &&
+          !matchOfficer &&
           !matchManager &&
           !matchDue &&
           !matchTask
@@ -1565,6 +1574,7 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
                       <th className="p-3">رقم القضية</th>
                       <th className="p-3">التصنيف / نوع القضية</th>
                       <th className="p-3">المدعي والمدعى عليه</th>
+                      <th className="p-3 text-amber-300">الطلبات (خانة I)</th>
                       <th className="p-3">المحكمة والدائرة</th>
                       <th className="p-3 text-center">تاريخ الحكم (P)</th>
                       <th className="p-3 text-center">رقم الصك والوثيقة (N/S)</th>
@@ -1578,7 +1588,7 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
                   <tbody className="divide-y divide-slate-800 text-slate-200">
                     {filteredNonFinalJudgments.length === 0 ? (
                       <tr>
-                        <td colSpan={9} className="p-8 text-center text-slate-500">
+                        <td colSpan={10} className="p-8 text-center text-slate-500">
                           لا توجد قضايا محكومة بحكم غير نهائي مطابقة للبحث.
                         </td>
                       </tr>
@@ -1598,6 +1608,11 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
                             <td className="p-3">
                               <span className="block text-slate-200 font-medium">المدعي: {j.plaintiff || '-'}</span>
                               <span className="block text-slate-400 text-[11px]">المدعى عليه: {j.defendant || '-'}</span>
+                            </td>
+                            <td className="p-3 max-w-[220px]">
+                              <p className="text-slate-300 line-clamp-2 leading-relaxed font-medium" title={matchingCase?.claims || j.claims || ''}>
+                                {matchingCase?.claims || j.claims || '-'}
+                              </p>
                             </td>
                             <td className="p-3">
                               <span className="block text-slate-300 font-medium">{j.court || '-'}</span>
@@ -1773,7 +1788,7 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
                     type="text"
                     value={noLinkHearingSearchQuery}
                     onChange={(e) => setNoLinkHearingSearchQuery(e.target.value)}
-                    placeholder="ابحث برقم القضية، التاريخ، المسؤول..."
+                    placeholder="ابحث برقم القضية، التاريخ، ضابط القضية..."
                     className="w-full bg-[#0A0D16] border border-slate-800 rounded-xl p-2.5 pr-9 text-white font-medium text-xs outline-none focus:border-brand-primary placeholder-slate-600"
                   />
                   <Search className="w-4 h-4 text-slate-500 absolute top-3 right-3" />
@@ -1786,7 +1801,7 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
                   <thead>
                     <tr className="bg-slate-900 text-slate-400 font-bold border-b border-slate-800">
                       <th className="p-3">رقم القضية</th>
-                      <th className="p-3 text-amber-300">المسؤول (N)</th>
+                      <th className="p-3 text-purple-300">ضابط القضية (W)</th>
                       <th className="p-3">المدعي والمدعى عليه</th>
                       <th className="p-3">تاريخ الجلسة والساعة</th>
                       <th className="p-3 text-center">رقم الضبط (S)</th>
@@ -1806,8 +1821,8 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
                       filteredEndedHearingsWithoutLink.map((item, idx) => (
                         <tr key={`hnl-${idx}`} className="hover:bg-slate-800/40 transition-colors">
                           <td className="p-3 font-bold text-white font-mono">{item.hearing.caseNumber || '-'}</td>
-                          <td className="p-3 font-black text-amber-300 bg-amber-500/10 rounded-lg">
-                            {item.managerName}
+                          <td className="p-3 font-black text-purple-300 bg-purple-500/10 rounded-lg">
+                            {item.officerName}
                           </td>
                           <td className="p-3">
                             <span className="block text-slate-200 font-medium">
@@ -1950,7 +1965,7 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
                       type="text"
                       value={memoSearchQuery}
                       onChange={(e) => setMemoSearchQuery(e.target.value)}
-                      placeholder="بحث برقم القضية، المدعي، المدعى عليه، المحكمة، الطلبات..."
+                      placeholder="بحث برقم القضية، ضابط القضية، المدعي، المدعى عليه، المحكمة، الطلبات..."
                       className="w-full bg-[#0A0D16] border border-slate-800 rounded-xl p-2.5 pr-9 text-white font-medium text-xs outline-none focus:border-brand-primary placeholder-slate-600"
                     />
                     <Search className="w-4 h-4 text-slate-500 absolute top-3 right-3" />
@@ -1964,6 +1979,7 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
                   <thead className="sticky top-0 bg-[#0F1422] z-10 shadow-sm">
                     <tr className="text-slate-400 font-bold border-b border-slate-800">
                       <th className="p-3">رقم القضية</th>
+                      <th className="p-3 text-purple-300">ضابط القضية (W)</th>
                       <th className="p-3">المدعي</th>
                       <th className="p-3">المدعى عليه</th>
                       <th className="p-3 max-w-[220px]">الطلبات</th>
@@ -1990,7 +2006,7 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
                   <tbody className="divide-y divide-slate-800 text-slate-200">
                     {filteredPendingMemos.length === 0 ? (
                       <tr>
-                        <td colSpan={10} className="p-8 text-center text-slate-500">
+                        <td colSpan={11} className="p-8 text-center text-slate-500">
                           لا توجد مذكرات معلقة مطابقة لشروط الفلترة الحالية.
                         </td>
                       </tr>
@@ -2005,11 +2021,13 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
                             {/* رقم القضية */}
                             <td className="p-3 font-bold text-white font-mono whitespace-nowrap">
                               <div>{m.caseNumber || '-'}</div>
-                              {item.managerName && item.managerName !== 'غير محدد' && (
-                                <div className="text-[10px] text-amber-300 font-normal font-sans mt-0.5">
-                                  المسؤول: {item.managerName}
-                                </div>
-                              )}
+                            </td>
+
+                            {/* ضابط القضية (W) */}
+                            <td className="p-3 whitespace-nowrap">
+                              <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-purple-500/15 text-purple-300 border border-purple-500/30 inline-block">
+                                {item.officerName}
+                              </span>
                             </td>
 
                             {/* المدعي */}
@@ -2145,6 +2163,7 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
                                       driveLink: m.driveLink || '',
                                       caseStatus: '',
                                       caseManager: item.managerName,
+                                      caseOfficer: item.officerName !== 'غير محدد' ? item.officerName : '',
                                       currentSituation: m.task,
                                       fileNameQ: '',
                                       requestType: '',
