@@ -123,6 +123,7 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
   // New Data Quality Tables State
   const [noReqTypeSearchQuery, setNoReqTypeSearchQuery] = useState<string>('');
   const [noLinkHearingSearchQuery, setNoLinkHearingSearchQuery] = useState<string>('');
+  const [completedNoDeedSearchQuery, setCompletedNoDeedSearchQuery] = useState<string>('');
 
   // Pending Untreated Memos State
   const [memos, setMemos] = useState<MemoRecord[]>([]);
@@ -466,6 +467,33 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
     });
   }, [endedHearingsWithoutLink, noLinkHearingSearchQuery]);
 
+  // Completed Cases without Judgment Deed (خانة S تساوي TRUE ولا يوجد رابط صك في خانة V)
+  const completedCasesWithoutDeed = useMemo(() => {
+    return cases.filter(c => {
+      const isCompleted = (c.completedCases || '').trim().toUpperCase() === 'TRUE';
+      if (!isCompleted) return false;
+      const deed = (c.instrumentDeed || '').trim();
+      const hasDeedLink = deed.length > 0 && deed !== '-' && deed !== 'لا يوجد' && (isValidLink(deed) || deed.startsWith('http'));
+      return !hasDeedLink;
+    });
+  }, [cases]);
+
+  const filteredCompletedCasesWithoutDeed = useMemo(() => {
+    return completedCasesWithoutDeed.filter(c => {
+      if (!completedNoDeedSearchQuery.trim()) return true;
+      const q = completedNoDeedSearchQuery.trim().toLowerCase();
+      return (
+        (c.caseNumber || '').toLowerCase().includes(q) ||
+        (c.caseOfficer || '').toLowerCase().includes(q) ||
+        (c.plaintiff || '').toLowerCase().includes(q) ||
+        (c.defendant || '').toLowerCase().includes(q) ||
+        (c.claims || '').toLowerCase().includes(q) ||
+        (c.court || '').toLowerCase().includes(q) ||
+        (c.circuit || '').toLowerCase().includes(q)
+      );
+    });
+  }, [completedCasesWithoutDeed, completedNoDeedSearchQuery]);
+
   // Pending / Untreated Memos Helpers & Filters
   const isMemoUntreated = (m: MemoRecord) => {
     const task = (m.task || '').trim();
@@ -630,10 +658,11 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
       unassigned,
       noReqTypeCount: casesWithoutRequestType.length,
       noLinkHearingsCount: endedHearingsWithoutLink.length,
+      completedNoDeedCount: completedCasesWithoutDeed.length,
       pendingMemosCount: pendingUntreatedMemos.length,
       managersCount: managersList.length
     };
-  }, [cases, managersList, casesWithoutRequestType, endedHearingsWithoutLink, pendingUntreatedMemos]);
+  }, [cases, managersList, casesWithoutRequestType, endedHearingsWithoutLink, completedCasesWithoutDeed, pendingUntreatedMemos]);
 
   // Manager Summaries
   const managerSummaries = useMemo(() => {
@@ -948,7 +977,7 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
       {!loading && !error && (
         <>
           {/* Main KPI Stat Cards Bar */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-10 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-11 gap-3">
             <div className="p-4 bg-[#0F1422] border border-slate-800 rounded-2xl space-y-1">
               <span className="text-[11px] text-slate-400 font-bold block">إجمالي القضايا</span>
               <div className="text-2xl font-black text-white font-mono">{metrics.total}</div>
@@ -1015,6 +1044,19 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
               </div>
               <div className="text-2xl font-black text-rose-300 font-mono">{metrics.noLinkHearingsCount}</div>
               <span className="text-[10px] text-rose-400/80 block truncate">خانة Q بدون رابط ⬇</span>
+            </div>
+
+            <div
+              onClick={() => scrollToSection('completed-no-deed-section')}
+              className="p-4 bg-[#0F1422] border border-amber-500/40 rounded-2xl space-y-1 bg-amber-500/10 hover:border-amber-400 cursor-pointer transition-all group"
+              title="اضغط للانتقال إلى جدول القضايا المنجزة بدون صك حكم"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-amber-300 font-bold block truncate">منجزة بدون صك</span>
+                <FileCheck className="w-3.5 h-3.5 text-amber-400 shrink-0 group-hover:scale-110 transition-transform" />
+              </div>
+              <div className="text-2xl font-black text-amber-300 font-mono">{metrics.completedNoDeedCount}</div>
+              <span className="text-[10px] text-amber-400/80 block truncate">خانة S=TRUE وبدون V ⬇</span>
             </div>
 
             <div
@@ -1859,6 +1901,110 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({ casesRaw }) 
                             ) : (
                               <span className="text-slate-600 text-[11px]">-</span>
                             )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 8.5: Completed Cases Without Judgment Deed Table (جدول القضايا المنجزة بدون صك حكم - خانة S و V) */}
+          <div id="completed-no-deed-section" className="space-y-4 pt-6 border-t border-slate-800">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <FileCheck className="w-5 h-5 text-amber-400" />
+                <h3 className="text-lg font-black text-white">
+                  جدول القضايا المنجزة التي لا يوجد بها صك حكم (خانة S و V)
+                </h3>
+                <span className="text-xs bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full font-mono font-bold">
+                  {completedCasesWithoutDeed.length} قضية
+                </span>
+              </div>
+            </div>
+
+            <div className="p-5 bg-[#0F1422] border border-slate-800 rounded-2xl space-y-4">
+              {/* Search Bar */}
+              <div className="max-w-md">
+                <label className="block text-slate-400 font-bold mb-1 text-xs">بحث في القضايا المنجزة بدون صك</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={completedNoDeedSearchQuery}
+                    onChange={(e) => setCompletedNoDeedSearchQuery(e.target.value)}
+                    placeholder="ابحث برقم القضية، ضابط القضية، الأطراف، الطلبات، المحكمة..."
+                    className="w-full bg-[#0A0D16] border border-slate-800 rounded-xl p-2.5 pr-9 text-white font-medium text-xs outline-none focus:border-brand-primary placeholder-slate-600"
+                  />
+                  <Search className="w-4 h-4 text-slate-500 absolute top-3 right-3" />
+                </div>
+              </div>
+
+              {/* Table */}
+              <div className="overflow-x-auto rounded-xl border border-slate-800">
+                <table className="w-full text-right text-xs">
+                  <thead>
+                    <tr className="bg-slate-900 text-slate-400 font-bold border-b border-slate-800">
+                      <th className="p-3">رقم القضية</th>
+                      <th className="p-3 text-purple-300">ضابط القضية (W)</th>
+                      <th className="p-3">المدعي والمدعى عليه</th>
+                      <th className="p-3">الطلبات</th>
+                      <th className="p-3">المحكمة والدائرة</th>
+                      <th className="p-3 text-center text-amber-300">حالة الصك (V)</th>
+                      <th className="p-3 text-center">عرض القضية</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800 text-slate-200">
+                    {filteredCompletedCasesWithoutDeed.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="p-8 text-center text-slate-500">
+                          لا توجد قضايا منجزة بدون صك حكم مطابقة للبحث.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredCompletedCasesWithoutDeed.map((c, idx) => (
+                        <tr key={`cnd-${c.caseNumber || idx}`} className="hover:bg-slate-800/40 transition-colors">
+                          <td className="p-3 font-bold text-white font-mono">{c.caseNumber || '-'}</td>
+                          <td className="p-3 font-black text-purple-300 bg-purple-500/10 rounded-lg">
+                            {c.caseOfficer && c.caseOfficer.trim() ? c.caseOfficer.trim() : 'غير محدد'}
+                          </td>
+                          <td className="p-3">
+                            <span className="block text-slate-200 font-medium">
+                              المدعي: {c.plaintiff || '-'}
+                            </span>
+                            <span className="block text-slate-400 text-[11px]">
+                              المدعى عليه: {c.defendant || '-'}
+                            </span>
+                          </td>
+                          <td className="p-3 max-w-[280px]">
+                            {c.claims && c.claims.trim() ? (
+                              <span
+                                className="block text-slate-300 line-clamp-2 cursor-help text-[11px] leading-relaxed"
+                                title={c.claims}
+                              >
+                                {c.claims}
+                              </span>
+                            ) : (
+                              <span className="text-slate-600 font-mono text-[11px]">-</span>
+                            )}
+                          </td>
+                          <td className="p-3">
+                            <span className="block text-slate-300 font-medium">{c.court || '-'}</span>
+                            <span className="block text-slate-400 text-[11px]">{c.circuit || '-'}</span>
+                          </td>
+                          <td className="p-3 text-center">
+                            <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 inline-flex items-center gap-1">
+                              <AlertTriangle className="w-3 h-3 text-amber-400" /> لا يوجد رابط صك
+                            </span>
+                          </td>
+                          <td className="p-3 text-center">
+                            <button
+                              onClick={() => setSelectedCaseModal(c)}
+                              className="px-2.5 py-1 rounded-lg bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-primary font-bold text-xs border border-brand-primary/30 transition-colors"
+                            >
+                              عرض القضية
+                            </button>
                           </td>
                         </tr>
                       ))
